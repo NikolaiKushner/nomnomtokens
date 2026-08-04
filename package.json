@@ -1,0 +1,32 @@
+{
+  "name": "nomnomtokens",
+  "version": "0.0.1",
+  "description": "nom nom nom — your AI coding agent is eating tokens. A local-first dashboard that shows exactly how many.",
+  "keywords": ["claude-code", "usage", "tokens", "dashboard", "local-first", "analytics", "cli"],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "nomnomtokens": "bin/cli.js",
+    "nnt": "bin/cli.js"
+  },
+  "files": ["bin", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NikolaiKushner/nomnomtokens.git"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" build",
+    "dev": "pnpm --filter @nomnomtokens/web dev",
+    "nnt": "pnpm --filter @nomnomtokens/cli run nnt",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "packageManager": "pnpm@10.0.0"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@nomnomtokens/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "bin": { "nnt": "./dist/index.js" },
+  "scripts": {
+    "nnt": "tsx src/index.ts",
+    "build": "tsup src/index.ts --format esm --clean --sourcemap",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@nomnomtokens/adapters": "workspace:*",
+    "@nomnomtokens/core": "workspace:*",
+    "@nomnomtokens/db": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
