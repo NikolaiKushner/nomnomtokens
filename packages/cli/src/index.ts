@@ -63,11 +63,24 @@ program
     await doctor({ db: program.opts().db as string | undefined })
   })
 
-// `npx nomnomtokens` with no arguments is the advertised entry point, and it
-// should do the obvious thing rather than print help at someone who just
-// wanted the dashboard.
-if (process.argv.length <= 2) {
-  await serve({})
-} else {
-  await program.parseAsync(process.argv)
-}
+/**
+ * `npx nomnomtokens` is the advertised entry point, so an invocation with no
+ * subcommand means "open the dashboard" rather than "print help at someone who
+ * just wanted the dashboard".
+ *
+ * That has to hold for `nnt --port 5000` too, not only for a bare `nnt` — the
+ * flags belong to serve, and making the user type the word `serve` to use them
+ * is the kind of papercut that gets a tool uninstalled. So: if the arguments
+ * name no command and aren't asking for help, insert `serve`.
+ */
+const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'help'])
+const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
+
+const args = process.argv.slice(2)
+const isImplicitServe
+  = !args.some(arg => COMMANDS.has(arg))
+    && !args.some(arg => META_FLAGS.has(arg))
+
+await program.parseAsync(
+  isImplicitServe ? [...process.argv.slice(0, 2), 'serve', ...args] : process.argv,
+)

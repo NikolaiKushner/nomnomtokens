@@ -274,7 +274,21 @@ Out (→ the README Roadmap): every adapter except claude-code and csv, cloud mo
 | M3 | Nuxt: Overview + Timeline on real data | 3–4 | the dashboard opens and doesn't lie | ✅ done |
 | M4 | statusline integration, limits, SSE, forecast | 2–3 | numbers move in real time | ✅ done |
 | M5 | Scopes, Providers, mascot, polish | 2–3 | portfolio-worthy | ✅ screens done; polish ongoing |
-| M6 | npx packaging, README, GIF, replacing the placeholder with v0.1.0 | 2 | `npx nomnomtokens` works on a clean machine | ◻︎ ships `.output` in the tarball; GIF outstanding |
+| M6 | npx packaging, README, GIF, replacing the placeholder with v0.1.0 | 2 | `npx nomnomtokens` works on a clean machine | ✅ verified from a packed tarball; GIF + `npm publish` outstanding |
+
+**M6 notes.** The workspace packages are `private: true` and will never exist on
+npm, so the CLI is bundled with all `@nomnomtokens/*` code inlined (tsup,
+`noExternal`); only `better-sqlite3`, `chokidar` and `commander` stay external
+and are declared as real dependencies. The Nuxt build is staged from
+`apps/web/.output` to `web/` at pack time, because a dot-directory inside
+another workspace package does not survive `npm pack`.
+
+Acceptance was checked the only way that counts: `npm pack`, install the
+tarball into a throwaway project, and run it — on a machine with agent history
+(scan → serve → all six screens → SSE) and on one with none (warns, still opens
+the dashboard, shows the empty state, exits 0). That test caught a real bug:
+`nnt --port 5000` errored because the implicit-serve path only fired on a
+completely bare invocation, so any flag forced the user to type `serve`.
 
 M0 came first for a reason, and it paid for itself several times over. The
 public claim that JSONL *under*-reports turned out to be the wrong worry — the

@@ -55,6 +55,10 @@ export async function serve(opts: ServeOptions = {}): Promise<void> {
   if (!opts.noScan) {
     console.log(c.dim('catching up on history…'))
     await scan({ db: dbPath, quiet: true })
+    // Having nothing to scan is a failure for `nnt scan` but not for `serve`:
+    // a first-run machine with no agent history should still get a dashboard
+    // and its empty state, and should still exit 0 when you close it.
+    process.exitCode = undefined
   }
 
   const entry = findBuiltServer()

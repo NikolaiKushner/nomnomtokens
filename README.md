@@ -103,9 +103,17 @@ raw files, matching exactly on row count and all five token buckets. See
 
 ```sh
 pnpm install
-pnpm dev                        # dashboard with live reload on :4269
-pnpm test                       # unit tests
-pnpm --filter @nomnomtokens/web build
+pnpm dev          # dashboard with live reload on :4269
+pnpm test         # unit tests
+pnpm build        # Nuxt build, staged to web/, plus the bundled CLI in dist/
+```
+
+To check the published artefact rather than the workspace:
+
+```sh
+npm pack
+cd $(mktemp -d) && npm init -y && npm i /path/to/nomnomtokens-0.1.0.tgz
+./node_modules/.bin/nnt doctor
 ```
 
 Layout: `packages/core` (types, pricing, aggregation — isomorphic, zero Node
