@@ -7,6 +7,16 @@ settings:
 importers:
 
   .:
+    dependencies:
+      better-sqlite3:
+        specifier: ^13.0.2
+        version: 13.0.2
+      chokidar:
+        specifier: ^5.0.0
+        version: 5.0.0
+      commander:
+        specifier: ^15.0.0
+        version: 15.0.0
     devDependencies:
       tsup:
         specifier: ^8.3.5
