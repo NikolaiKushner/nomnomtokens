@@ -10,7 +10,9 @@ projects, and when you'll hit your limit.
 npx nomnomtokens
 ```
 
-![nomnomtokens dashboard — Timeline with spend chart and activity heatmap](docs/dashboard.png)
+![nomnomtokens Overview — eaten today, cache hit rate, and limit projections](docs/overview.png)
+
+![nomnomtokens Timeline — spend stacked by model and activity heatmap](docs/timeline.png)
 
 Claude Code, Cursor (when its local IDE database has token fields), and Codex
 CLI/IDE session rollouts. The event contract is deliberately not AI-shaped, so
@@ -31,7 +33,7 @@ without touching the core.
 - **Limits** — window-fill history with a burn-rate projection and markers for
   the moments you actually hit the cap.
 
-Filter state lives in the URL, `⌘K` jumps anywhere, dark by default.
+Filter state lives in the URL, `⌘K` jumps anywhere, light or dark theme.
 
 ## Install
 

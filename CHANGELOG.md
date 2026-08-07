@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.2.0...v0.3.0) (2026-08-07)
+
+
+### Features
+
+* add import, export, prices, alerts, and sidebar nav ([#5](https://github.com/NikolaiKushner/nomnomtokens/issues/5)) ([05adb1d](https://github.com/NikolaiKushner/nomnomtokens/commit/05adb1d593df7def9113df605e323cb9b28be31c))
+
 ## [0.2.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.1.0...v0.2.0) (2026-08-07)
 
 
