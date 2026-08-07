@@ -46,9 +46,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # The lowest version package.json claims to support — if it builds
-          # here it builds on everything above.
-          node-version: 20
+          # better-sqlite3@13 ships Node-22+ prebuilds; loading them on Node 20
+          # segfaults vitest workers with "Worker exited unexpectedly".
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -59,7 +59,7 @@ jobs:
       - name: Build native dependencies
         run: |
           pnpm rebuild better-sqlite3
-          node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+          node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); console.log(db.prepare('select 1 as x').get())"
 
       - run: pnpm -r typecheck
       - run: pnpm -r test
@@ -86,7 +86,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: [20, 24]
+        node: [22, 24]
 
     steps:
       - uses: actions/setup-node@v4
