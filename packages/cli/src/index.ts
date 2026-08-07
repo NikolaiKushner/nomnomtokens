@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
 import { doctor } from './commands/doctor.js'
+import { exportCommand } from './commands/export.js'
 import { importCsvCommand } from './commands/import-csv.js'
 import { init } from './commands/init.js'
 import { scan } from './commands/scan.js'
@@ -106,6 +107,35 @@ program
     })
   })
 
+program
+  .command('export')
+  .description('write filtered events as CSV or JSON (stdout or -o file)')
+  .option('--format <fmt>', 'csv or json', 'csv')
+  .option('-o, --out <file>', 'write to a file instead of stdout')
+  .option('--range <range>', '24h | 7d | 30d | 90d | all', '30d')
+  .option('--provider <name>', 'filter to one provider')
+  .option('-q, --quiet', 'suppress the summary on stderr')
+  .action((opts: {
+    format?: string
+    out?: string
+    range?: string
+    provider?: string
+    quiet?: boolean
+  }) => {
+    const format = opts.format === 'json' ? 'json' : 'csv'
+    const range = (['24h', '7d', '30d', '90d', 'all'] as const).includes(opts.range as never)
+      ? (opts.range as '24h' | '7d' | '30d' | '90d' | 'all')
+      : '30d'
+    exportCommand({
+      format,
+      out: opts.out,
+      range,
+      provider: opts.provider,
+      quiet: opts.quiet,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
 /**
  * `npx nomnomtokens` is the advertised entry point, so an invocation with no
  * subcommand means "open the dashboard" rather than "print help at someone who
@@ -116,7 +146,7 @@ program
  * is the kind of papercut that gets a tool uninstalled. So: if the arguments
  * name no command and aren't asking for help, insert `serve`.
  */
-const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'help'])
+const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'help'])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 
 const args = process.argv.slice(2)

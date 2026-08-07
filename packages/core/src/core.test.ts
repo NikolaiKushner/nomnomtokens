@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { costOf, resolveModelKey } from './pricing.js'
 import { currentWindowSnapshots, forecastLimit, linearRegression, moodFor } from './forecast.js'
 import { bucketStart, cacheHitRate, costPerKLines, heatmap, timeSeries } from './aggregate.js'
+import { formatExportCsv, formatExportJson } from './export-format.js'
 import { scopeHash, scopeLabel } from './hash.js'
 import type { LimitSnapshot, SpendEvent } from './types.js'
 import { totalTokens } from './types.js'
@@ -181,5 +182,37 @@ describe('forecasting', () => {
     expect(moodFor(30)).toBe('content')
     expect(moodFor(85)).toBe('stuffed')
     expect(moodFor(100)).toBe('overstuffed')
+  })
+})
+
+describe('export format', () => {
+  const row = {
+    id: 'e1',
+    ts: Date.UTC(2026, 0, 2, 12),
+    provider: 'claude-code',
+    kind: 'tokens',
+    sessionId: 's1',
+    scopeHash: 'abcd',
+    project: 'demo,project',
+    model: 'claude-sonnet-4-5',
+    costUsd: 1.5,
+    tokens: 1000,
+    qtyIn: 800,
+    qtyOut: 200,
+    qtyCacheCreate: 0,
+    qtyCacheCreate1h: 0,
+    qtyCacheRead: 100,
+  }
+
+  it('escapes CSV cells that contain commas', () => {
+    const csv = formatExportCsv([row])
+    expect(csv).toContain('"demo,project"')
+    expect(csv.split('\n')[0]).toContain('timestamp')
+  })
+
+  it('emits JSON with ISO timestamps', () => {
+    const parsed = JSON.parse(formatExportJson([row])) as Array<{ timestamp: string, costUsd: number }>
+    expect(parsed[0].timestamp).toBe('2026-01-02T12:00:00.000Z')
+    expect(parsed[0].costUsd).toBe(1.5)
   })
 })
