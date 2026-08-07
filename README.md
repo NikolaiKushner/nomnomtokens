@@ -146,8 +146,9 @@ emit events when numbers are present (exact `tokenCount`, or
 local counts will not appear until Cursor writes them — or until a future
 optional CSV enrich from the Cursor dashboard.
 
-Next: wire up CSV import, OTLP receiver, export, alerts. Then cloud mode — a
-second sink for the same events, never a rewrite, and never in the critical path.
+CSV import: `nnt import file.csv` or the Import screen. Next: OTLP receiver,
+export, alerts, cloud mode — a second sink for the same events, never a rewrite,
+and never in the critical path.
 
 ## License
 

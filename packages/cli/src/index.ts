@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
 import { doctor } from './commands/doctor.js'
+import { importCsvCommand } from './commands/import-csv.js'
 import { init } from './commands/init.js'
 import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
@@ -86,6 +87,25 @@ program
     await doctor({ db: program.opts().db as string | undefined })
   })
 
+program
+  .command('import <file>')
+  .description('import a CSV billing export or spreadsheet into the local store')
+  .option('--provider <name>', 'provider label written on every row', 'csv')
+  .option('--kind <kind>', 'event kind (tokens, minutes, …)', 'tokens')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (
+    file: string,
+    opts: { provider?: string, kind?: string, quiet?: boolean },
+  ) => {
+    await importCsvCommand({
+      file,
+      provider: opts.provider,
+      kind: opts.kind,
+      quiet: opts.quiet,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
 /**
  * `npx nomnomtokens` is the advertised entry point, so an invocation with no
  * subcommand means "open the dashboard" rather than "print help at someone who
@@ -96,7 +116,7 @@ program
  * is the kind of papercut that gets a tool uninstalled. So: if the arguments
  * name no command and aren't asking for help, insert `serve`.
  */
-const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'help'])
+const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'help'])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 
 const args = process.argv.slice(2)
