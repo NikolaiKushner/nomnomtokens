@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { importCsv } from '@nomnomtokens/adapters'
-import { openDb, Repo } from '@nomnomtokens/db'
+import { loadPriceTable, openDb, Repo } from '@nomnomtokens/db'
 import { c, compactNumber, usd } from '../format.js'
 
 export interface ImportCsvOptions {
@@ -28,11 +28,13 @@ export async function importCsvCommand(opts: ImportCsvOptions): Promise<void> {
     return
   }
 
+  const { prices } = loadPriceTable()
   let records
   try {
     records = await importCsv(text, {
       provider: opts.provider,
       kind: opts.kind,
+      prices,
     })
   } catch (err) {
     console.error(c.red(err instanceof Error ? err.message : String(err)))

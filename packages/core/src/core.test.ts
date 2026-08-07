@@ -3,6 +3,7 @@ import { costOf, resolveModelKey } from './pricing.js'
 import { currentWindowSnapshots, forecastLimit, linearRegression, moodFor } from './forecast.js'
 import { bucketStart, cacheHitRate, costPerKLines, heatmap, timeSeries } from './aggregate.js'
 import { formatExportCsv, formatExportJson } from './export-format.js'
+import { parsePricesFile, serializePricesFile } from './prices-file.js'
 import { scopeHash, scopeLabel } from './hash.js'
 import type { LimitSnapshot, SpendEvent } from './types.js'
 import { totalTokens } from './types.js'
@@ -214,5 +215,20 @@ describe('export format', () => {
     const parsed = JSON.parse(formatExportJson([row])) as Array<{ timestamp: string, costUsd: number }>
     expect(parsed[0].timestamp).toBe('2026-01-02T12:00:00.000Z')
     expect(parsed[0].costUsd).toBe(1.5)
+  })
+})
+
+describe('prices file', () => {
+  it('accepts a bare model map or a wrapped { models } object', () => {
+    const bare = parsePricesFile('{"claude-sonnet-4-5":{"input":3,"output":15}}')
+    expect(bare.models['claude-sonnet-4-5']?.input).toBe(3)
+
+    const wrapped = parsePricesFile(serializePricesFile({
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      source: 'test',
+      models: { 'claude-opus-4-6': { input: 5, output: 25 } },
+    }))
+    expect(wrapped.source).toBe('test')
+    expect(wrapped.models['claude-opus-4-6']?.output).toBe(25)
   })
 })

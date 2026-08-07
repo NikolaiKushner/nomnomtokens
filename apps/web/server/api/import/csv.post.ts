@@ -1,4 +1,5 @@
 import { importCsv } from '@nomnomtokens/adapters'
+import { loadPriceTable } from '@nomnomtokens/db'
 
 /**
  * Upload a CSV (billing export, spreadsheet, Cursor dump) into the local store.
@@ -34,9 +35,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'empty CSV body' })
   }
 
+  const { prices } = loadPriceTable()
   let records
   try {
-    records = await importCsv(text, { provider, kind })
+    records = await importCsv(text, { provider, kind, prices })
   } catch (err) {
     throw createError({
       statusCode: 400,

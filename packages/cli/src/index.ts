@@ -7,6 +7,7 @@ import { doctor } from './commands/doctor.js'
 import { exportCommand } from './commands/export.js'
 import { importCsvCommand } from './commands/import-csv.js'
 import { init } from './commands/init.js'
+import { pricesRefresh, pricesShow } from './commands/prices.js'
 import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
 import { statusline } from './commands/statusline.js'
@@ -136,6 +137,26 @@ program
     })
   })
 
+const prices = program
+  .command('prices')
+  .description('show or refresh the local model price table (~/.nomnomtokens/prices.json)')
+
+prices
+  .command('show', { isDefault: true })
+  .description('print the effective price table and where it came from')
+  .action(() => {
+    pricesShow()
+  })
+
+prices
+  .command('refresh')
+  .description('write bundled prices to disk (or merge --from); used by scan/import')
+  .option('--from <url|path>', 'merge prices from a JSON URL or local file (network only for http)')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (opts: { from?: string, quiet?: boolean }) => {
+    await pricesRefresh(opts)
+  })
+
 /**
  * `npx nomnomtokens` is the advertised entry point, so an invocation with no
  * subcommand means "open the dashboard" rather than "print help at someone who
@@ -146,7 +167,9 @@ program
  * is the kind of papercut that gets a tool uninstalled. So: if the arguments
  * name no command and aren't asking for help, insert `serve`.
  */
-const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'help'])
+const COMMANDS = new Set([
+  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'help',
+])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 
 const args = process.argv.slice(2)

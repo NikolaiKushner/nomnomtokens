@@ -65,6 +65,9 @@ The hook doubles as a real status line:
 | `nnt init [--force]` | wire up the status line hook |
 | `nnt statusline` | ingest a session payload and print a status line |
 | `nnt doctor` | why is it empty? checks sources, hook, and store |
+| `nnt import <file.csv>` | import a billing CSV into the local store |
+| `nnt export` | dump filtered events as CSV/JSON |
+| `nnt prices [show\|refresh]` | local model price table (`~/.nomnomtokens/prices.json`) |
 
 ## Privacy
 

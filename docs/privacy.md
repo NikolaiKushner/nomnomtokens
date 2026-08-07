@@ -127,9 +127,10 @@ Message content, tool inputs/outputs, diffs, git metadata, and auth files under
 Phase 1 makes no outbound requests of any kind. The dashboard binds to
 localhost.
 
-If price-table refresh is added later it will be a single explicit fetch of a
-public price list, opt-out, sending nothing but the request itself — and it will
-be documented here before it ships.
+Price-table refresh is local by default: `nnt prices refresh` writes the bundled
+rates to `~/.nomnomtokens/prices.json` with no network. The only outbound call
+is opt-in — `nnt prices refresh --from <https://…>` — and it sends nothing but
+the GET itself (no account, no telemetry, no path or prompt data).
 
 ## Phase 2, when it arrives
 

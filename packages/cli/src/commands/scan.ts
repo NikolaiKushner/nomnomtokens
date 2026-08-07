@@ -1,7 +1,7 @@
 import { detectAdapters } from '@nomnomtokens/adapters'
 import type { IngestRecord } from '@nomnomtokens/core'
-import { openDb, Queries, Repo } from '@nomnomtokens/db'
 import { bucketStart } from '@nomnomtokens/core'
+import { loadPriceTable, openDb, Queries, Repo } from '@nomnomtokens/db'
 import { c, compactNumber, duration, usd } from '../format.js'
 
 export interface ScanOptions {
@@ -17,7 +17,8 @@ export async function scan(opts: ScanOptions = {}): Promise<void> {
   const queries = new Queries(sqlite)
   const state = repo.scanState()
 
-  const adapters = await detectAdapters()
+  const { prices, file: pricesFile, path: pricesPath } = loadPriceTable()
+  const adapters = await detectAdapters({ prices })
   if (adapters.length === 0) {
     console.error(c.yellow('No sources detected on this machine.'))
     console.error(c.dim('Looks for ~/.claude/projects, Cursor state.vscdb, and ~/.codex/sessions. Run `nnt doctor`.'))
@@ -86,6 +87,13 @@ export async function scan(opts: ScanOptions = {}): Promise<void> {
     if (today.unpricedEvents > 0) {
       console.log(c.dim(`  (${today.unpricedEvents} events had no price and are excluded from cost)`))
     }
+    console.log(
+      c.dim(
+        pricesFile
+          ? `prices ${pricesPath}${pricesFile.updatedAt ? ` · ${pricesFile.updatedAt}` : ''}`
+          : `prices bundled (run \`nnt prices refresh\` to materialise ${pricesPath})`,
+      ),
+    )
     console.log(
       c.dim(`${all.events} events in ${path} — scanned in ${duration(Date.now() - started)}`),
     )
