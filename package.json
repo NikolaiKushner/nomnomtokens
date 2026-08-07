@@ -2,15 +2,31 @@
   "name": "nomnomtokens",
   "version": "0.1.0",
   "description": "nom nom nom — your AI coding agent is eating tokens. A local-first dashboard that shows exactly how many.",
-  "keywords": ["claude-code", "usage", "tokens", "dashboard", "local-first", "analytics", "cli"],
+  "keywords": [
+    "claude-code",
+    "usage",
+    "tokens",
+    "dashboard",
+    "local-first",
+    "analytics",
+    "cli"
+  ],
   "license": "MIT",
   "type": "module",
   "bin": {
     "nomnomtokens": "bin/cli.js",
     "nnt": "bin/cli.js"
   },
-  "files": ["bin", "dist", "web", "README.md", "LICENSE"],
-  "engines": { "node": ">=22" },
+  "files": [
+    "bin",
+    "dist",
+    "web",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3",
@@ -23,7 +39,9 @@
     "url": "git+https://github.com/NikolaiKushner/nomnomtokens.git"
   },
   "homepage": "https://github.com/NikolaiKushner/nomnomtokens#readme",
-  "bugs": { "url": "https://github.com/NikolaiKushner/nomnomtokens/issues" },
+  "bugs": {
+    "url": "https://github.com/NikolaiKushner/nomnomtokens/issues"
+  },
   "dependencies": {
     "better-sqlite3": "^13.0.2",
     "chokidar": "^5.0.0",
