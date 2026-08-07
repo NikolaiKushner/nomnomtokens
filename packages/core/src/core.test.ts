@@ -214,8 +214,10 @@ describe('export format', () => {
 
   it('emits JSON with ISO timestamps', () => {
     const parsed = JSON.parse(formatExportJson([row])) as Array<{ timestamp: string, costUsd: number }>
-    expect(parsed[0].timestamp).toBe('2026-01-02T12:00:00.000Z')
-    expect(parsed[0].costUsd).toBe(1.5)
+    const first = parsed[0]
+    expect(first).toBeDefined()
+    expect(first!.timestamp).toBe('2026-01-02T12:00:00.000Z')
+    expect(first!.costUsd).toBe(1.5)
   })
 })
 
