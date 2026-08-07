@@ -53,10 +53,25 @@ export function useFilters() {
     setMetric: (value: string) => patch({ metric: value === 'cost' ? undefined : value }),
     clearScopes: () => patch({ scope: undefined }),
 
+    setScopes(hashes: string[]) {
+      const unique = [...new Set(hashes.filter(Boolean))]
+      patch({ scope: unique.join(',') || undefined })
+    },
+
     toggleScope(hash: string) {
       const next = scopes.value.includes(hash)
         ? scopes.value.filter(s => s !== hash)
         : [...scopes.value, hash]
+      patch({ scope: next.join(',') || undefined })
+    },
+
+    /** Toggle every hash in a label group on or off together. */
+    toggleScopeGroup(hashes: string[]) {
+      if (hashes.length === 0) return
+      const allOn = hashes.every(h => scopes.value.includes(h))
+      const next = allOn
+        ? scopes.value.filter(s => !hashes.includes(s))
+        : [...new Set([...scopes.value, ...hashes])]
       patch({ scope: next.join(',') || undefined })
     },
 

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { costOf, resolveModelKey } from './pricing.js'
 import { currentWindowSnapshots, forecastLimit, linearRegression, moodFor } from './forecast.js'
 import { bucketStart, cacheHitRate, costPerKLines, heatmap, timeSeries } from './aggregate.js'
+import { formatExportCsv, formatExportJson } from './export-format.js'
+import { evaluateAlerts, parseAlertsConfig } from './alerts.js'
+import { parsePricesFile, serializePricesFile } from './prices-file.js'
 import { scopeHash, scopeLabel } from './hash.js'
 import type { LimitSnapshot, SpendEvent } from './types.js'
 import { totalTokens } from './types.js'
@@ -181,5 +184,77 @@ describe('forecasting', () => {
     expect(moodFor(30)).toBe('content')
     expect(moodFor(85)).toBe('stuffed')
     expect(moodFor(100)).toBe('overstuffed')
+  })
+})
+
+describe('export format', () => {
+  const row = {
+    id: 'e1',
+    ts: Date.UTC(2026, 0, 2, 12),
+    provider: 'claude-code',
+    kind: 'tokens',
+    sessionId: 's1',
+    scopeHash: 'abcd',
+    project: 'demo,project',
+    model: 'claude-sonnet-4-5',
+    costUsd: 1.5,
+    tokens: 1000,
+    qtyIn: 800,
+    qtyOut: 200,
+    qtyCacheCreate: 0,
+    qtyCacheCreate1h: 0,
+    qtyCacheRead: 100,
+  }
+
+  it('escapes CSV cells that contain commas', () => {
+    const csv = formatExportCsv([row])
+    expect(csv).toContain('"demo,project"')
+    expect(csv.split('\n')[0]).toContain('timestamp')
+  })
+
+  it('emits JSON with ISO timestamps', () => {
+    const parsed = JSON.parse(formatExportJson([row])) as Array<{ timestamp: string, costUsd: number }>
+    const first = parsed[0]
+    expect(first).toBeDefined()
+    expect(first!.timestamp).toBe('2026-01-02T12:00:00.000Z')
+    expect(first!.costUsd).toBe(1.5)
+  })
+})
+
+describe('prices file', () => {
+  it('accepts a bare model map or a wrapped { models } object', () => {
+    const bare = parsePricesFile('{"claude-sonnet-4-5":{"input":3,"output":15}}')
+    expect(bare.models['claude-sonnet-4-5']?.input).toBe(3)
+
+    const wrapped = parsePricesFile(serializePricesFile({
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      source: 'test',
+      models: { 'claude-opus-4-6': { input: 5, output: 25 } },
+    }))
+    expect(wrapped.source).toBe('test')
+    expect(wrapped.models['claude-opus-4-6']?.output).toBe(25)
+  })
+})
+
+describe('alerts', () => {
+  it('fires limit and daily thresholds independently', () => {
+    const config = parseAlertsConfig({ limitPct: 80, dailyUsd: 10 })
+    const hits = evaluateAlerts(config, {
+      todayCostUsd: 12,
+      limits: [
+        { provider: 'claude-code', window: '5h', usedPct: 90 },
+        { provider: 'claude-code', window: '7d', usedPct: 40 },
+      ],
+    })
+    expect(hits.map(h => h.kind).sort()).toEqual(['daily', 'limit'])
+    expect(hits.find(h => h.kind === 'limit')?.window).toBe('5h')
+  })
+
+  it('treats null thresholds as off', () => {
+    const hits = evaluateAlerts(parseAlertsConfig({ limitPct: null, dailyUsd: null }), {
+      todayCostUsd: 999,
+      limits: [{ provider: 'x', window: '5h', usedPct: 99 }],
+    })
+    expect(hits).toHaveLength(0)
   })
 })

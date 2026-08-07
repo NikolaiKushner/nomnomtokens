@@ -65,6 +65,10 @@ The hook doubles as a real status line:
 | `nnt init [--force]` | wire up the status line hook |
 | `nnt statusline` | ingest a session payload and print a status line |
 | `nnt doctor` | why is it empty? checks sources, hook, and store |
+| `nnt import <file.csv>` | import a billing CSV into the local store |
+| `nnt export` | dump filtered events as CSV/JSON |
+| `nnt prices [show\|refresh]` | local model price table (`~/.nomnomtokens/prices.json`) |
+| `nnt alerts [show\|check]` | limit % / daily $ thresholds (`~/.nomnomtokens/alerts.json`) |
 
 ## Privacy
 
@@ -135,19 +139,18 @@ the core, the contract is wrong and that's a bug worth reporting.
 
 ## Roadmap
 
-Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), Codex
-adapter (`~/.codex/sessions/**/rollout-*.jsonl`), all six screens, limits with
-forecasting, live updates. CSV helpers exist in `packages/adapters` but are not
-wired into `scan` / the UI yet.
+Shipped: Claude Code / Cursor / Codex adapters, CSV import & export, Projects
+grouped by name, local `prices.json` refresh, limit/daily alerts, all dashboard
+screens, limits with forecasting, live updates.
 
 Cursor caveat: the IDE often stores zero token counts in local bubbles. We only
 emit events when numbers are present (exact `tokenCount`, or
 `tokensUsed` + delta). We do not estimate from message text. Sessions without
-local counts will not appear until Cursor writes them — or until a future
-optional CSV enrich from the Cursor dashboard.
+local counts will not appear until Cursor writes them — or until you import a
+billing CSV.
 
-Next: wire up CSV import, OTLP receiver, export, alerts. Then cloud mode — a
-second sink for the same events, never a rewrite, and never in the critical path.
+Next: OTLP receiver, then cloud mode — a second sink for the same events, never
+a rewrite, and never in the critical path.
 
 ## License
 

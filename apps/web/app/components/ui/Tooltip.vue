@@ -9,9 +9,22 @@ import { cn } from '~/lib/utils'
  * `translate` is sufficient and costs nothing.
  */
 const props = withDefaults(
-  defineProps<{ content?: string, side?: 'top' | 'bottom', class?: string }>(),
+  defineProps<{ content?: string, side?: 'top' | 'bottom' | 'left' | 'right', class?: string }>(),
   { side: 'top' },
 )
+
+const sideClass = computed(() => {
+  switch (props.side) {
+    case 'bottom':
+      return 'top-full mt-1.5 left-1/2 -translate-x-1/2'
+    case 'left':
+      return 'right-full mr-1.5 top-1/2 -translate-y-1/2'
+    case 'right':
+      return 'left-full ml-1.5 top-1/2 -translate-y-1/2'
+    default:
+      return 'bottom-full mb-1.5 left-1/2 -translate-x-1/2'
+  }
+})
 
 const open = ref(false)
 </script>
@@ -35,8 +48,8 @@ const open = ref(false)
         v-if="open && (props.content || $slots.content)"
         role="tooltip"
         :class="cn(
-          'bg-primary text-primary-foreground pointer-events-none absolute left-1/2 z-50 w-max max-w-xs -translate-x-1/2 rounded-md px-3 py-1.5 text-xs text-balance shadow-md',
-          props.side === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5',
+          'bg-primary text-primary-foreground pointer-events-none absolute z-50 w-max max-w-xs rounded-md px-3 py-1.5 text-xs text-balance shadow-md',
+          sideClass,
           props.class,
         )"
       >

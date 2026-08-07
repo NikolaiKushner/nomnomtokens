@@ -16,7 +16,7 @@ withDefaults(
     <CookieMark :size="size" class="text-foreground" />
     <span
       v-if="showWordmark"
-      class="text-sm font-semibold tracking-tight sm:text-[15px]"
+      class="text-sm leading-none font-semibold tracking-tight"
     >
       <span>nomnom</span><span class="text-muted-foreground font-medium">tokens</span>
     </span>

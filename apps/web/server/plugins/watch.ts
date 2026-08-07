@@ -1,4 +1,5 @@
 import { detectAdapters } from '@nomnomtokens/adapters'
+import { loadPriceTable } from '@nomnomtokens/db'
 
 /**
  * Tail adapter sources from inside the server process.
@@ -12,8 +13,9 @@ export default defineNitroPlugin((nitro) => {
   if (process.env.NOMNOMTOKENS_NO_WATCH === '1') return
 
   const stops: Array<() => void> = []
+  const { prices } = loadPriceTable()
 
-  void detectAdapters().then((adapters) => {
+  void detectAdapters({ prices }).then((adapters) => {
     for (const adapter of adapters) {
       if (!adapter.watch) continue
       stops.push(

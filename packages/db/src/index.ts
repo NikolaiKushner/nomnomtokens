@@ -1,4 +1,6 @@
 export * from './client.js'
 export * from './repo.js'
 export * from './queries.js'
+export * from './prices.js'
+export * from './alerts.js'
 export * as schema from './schema/sqlite.js'

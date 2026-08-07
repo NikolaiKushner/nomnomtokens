@@ -304,4 +304,86 @@ export class Queries {
       .prepare('SELECT MIN(ts) AS first, MAX(ts) AS last, COUNT(*) AS events FROM events')
       .get() as { first: number | null, last: number | null, events: number }
   }
+
+  /**
+   * Flat event rows for CSV/JSON export. Joins the local scope label when known.
+   * Caps at `limit` so a mistaken "all time" dump cannot OOM the process.
+   */
+  exportEvents(f: Filters = {}, limit = 100_000): ExportEventRow[] {
+    const w = buildWhere(f)
+    const params = { ...w.params, limit }
+    return this.sqlite.prepare(`
+      SELECT
+        e.id AS id,
+        e.ts AS ts,
+        e.provider AS provider,
+        e.kind AS kind,
+        e.session_id AS sessionId,
+        e.scope_hash AS scopeHash,
+        s.label AS project,
+        e.unit_label AS model,
+        e.cost_usd AS costUsd,
+        e.qty_total AS tokens,
+        e.qty_json AS qtyJson,
+        e.meta_json AS metaJson
+      FROM events e
+      LEFT JOIN scopes s ON s.scope_hash = e.scope_hash
+      ${w.sql}
+      ORDER BY e.ts ASC
+      LIMIT @limit
+    `).all(params).map((row) => {
+      const r = row as {
+        id: string
+        ts: number
+        provider: string
+        kind: string
+        sessionId: string | null
+        scopeHash: string
+        project: string | null
+        model: string | null
+        costUsd: number | null
+        tokens: number
+        qtyJson: string
+        metaJson: string
+      }
+      const qty = JSON.parse(r.qtyJson) as Record<string, number>
+      return {
+        id: r.id,
+        ts: r.ts,
+        provider: r.provider,
+        kind: r.kind,
+        sessionId: r.sessionId,
+        scopeHash: r.scopeHash,
+        project: r.project,
+        model: r.model,
+        costUsd: r.costUsd,
+        tokens: r.tokens,
+        qtyIn: qty.in ?? 0,
+        qtyOut: qty.out ?? 0,
+        qtyCacheCreate: qty.cacheCreate ?? 0,
+        qtyCacheCreate1h: qty.cacheCreate1h ?? 0,
+        qtyCacheRead: qty.cacheRead ?? 0,
+        meta: JSON.parse(r.metaJson) as Record<string, number>,
+      }
+    })
+  }
+}
+
+export interface ExportEventRow {
+  id: string
+  ts: number
+  provider: string
+  kind: string
+  sessionId: string | null
+  scopeHash: string
+  project: string | null
+  model: string | null
+  costUsd: number | null
+  tokens: number
+  qtyIn: number
+  qtyOut: number
+  qtyCacheCreate: number
+  qtyCacheCreate1h: number
+  qtyCacheRead: number
+  meta: Record<string, number>
 }

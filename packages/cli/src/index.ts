@@ -3,8 +3,12 @@ import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
+import { alertsCheck, alertsShow } from './commands/alerts.js'
 import { doctor } from './commands/doctor.js'
+import { exportCommand } from './commands/export.js'
+import { importCsvCommand } from './commands/import-csv.js'
 import { init } from './commands/init.js'
+import { pricesRefresh, pricesShow } from './commands/prices.js'
 import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
 import { statusline } from './commands/statusline.js'
@@ -86,6 +90,98 @@ program
     await doctor({ db: program.opts().db as string | undefined })
   })
 
+program
+  .command('import <file>')
+  .description('import a CSV billing export or spreadsheet into the local store')
+  .option('--provider <name>', 'provider label written on every row', 'csv')
+  .option('--kind <kind>', 'event kind (tokens, minutes, …)', 'tokens')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (
+    file: string,
+    opts: { provider?: string, kind?: string, quiet?: boolean },
+  ) => {
+    await importCsvCommand({
+      file,
+      provider: opts.provider,
+      kind: opts.kind,
+      quiet: opts.quiet,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
+program
+  .command('export')
+  .description('write filtered events as CSV or JSON (stdout or -o file)')
+  .option('--format <fmt>', 'csv or json', 'csv')
+  .option('-o, --out <file>', 'write to a file instead of stdout')
+  .option('--range <range>', '24h | 7d | 30d | 90d | all', '30d')
+  .option('--provider <name>', 'filter to one provider')
+  .option('-q, --quiet', 'suppress the summary on stderr')
+  .action((opts: {
+    format?: string
+    out?: string
+    range?: string
+    provider?: string
+    quiet?: boolean
+  }) => {
+    const format = opts.format === 'json' ? 'json' : 'csv'
+    const range = (['24h', '7d', '30d', '90d', 'all'] as const).includes(opts.range as never)
+      ? (opts.range as '24h' | '7d' | '30d' | '90d' | 'all')
+      : '30d'
+    exportCommand({
+      format,
+      out: opts.out,
+      range,
+      provider: opts.provider,
+      quiet: opts.quiet,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
+const prices = program
+  .command('prices')
+  .description('show or refresh the local model price table (~/.nomnomtokens/prices.json)')
+
+prices
+  .command('show', { isDefault: true })
+  .description('print the effective price table and where it came from')
+  .action(() => {
+    pricesShow()
+  })
+
+prices
+  .command('refresh')
+  .description('write bundled prices to disk (or merge --from); used by scan/import')
+  .option('--from <url|path>', 'merge prices from a JSON URL or local file (network only for http)')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (opts: { from?: string, quiet?: boolean }) => {
+    await pricesRefresh(opts)
+  })
+
+const alerts = program
+  .command('alerts')
+  .description('threshold alerts for limit windows and daily spend')
+
+alerts
+  .command('show', { isDefault: true })
+  .description('print alert thresholds (~/.nomnomtokens/alerts.json)')
+  .action(() => {
+    alertsShow()
+  })
+
+alerts
+  .command('check')
+  .description('evaluate thresholds; exit 2 if any are firing')
+  .option('--notify', 'desktop notification and/or configured webhook')
+  .option('--webhook <url>', 'POST hits to this URL (overrides config)')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (opts: { notify?: boolean, webhook?: string, quiet?: boolean }) => {
+    await alertsCheck({
+      ...opts,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
 /**
  * `npx nomnomtokens` is the advertised entry point, so an invocation with no
  * subcommand means "open the dashboard" rather than "print help at someone who
@@ -96,7 +192,9 @@ program
  * is the kind of papercut that gets a tool uninstalled. So: if the arguments
  * name no command and aren't asking for help, insert `serve`.
  */
-const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'help'])
+const COMMANDS = new Set([
+  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'alerts', 'help',
+])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 
 const args = process.argv.slice(2)
