@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./claude-code": "./src/claude-code/index.ts",
+    "./cursor": "./src/cursor/index.ts",
     "./csv": "./src/csv/index.ts"
   },
   "scripts": {
@@ -17,9 +18,11 @@
   },
   "dependencies": {
     "@nomnomtokens/core": "workspace:*",
+    "better-sqlite3": "^13.0.2",
     "chokidar": "^5.0.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^24.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

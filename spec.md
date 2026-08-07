@@ -42,8 +42,8 @@ The core knows nothing about Claude Code. It knows two record types — a **spen
 ```
 ┌─ adapters ────────────────────────┐
 │ claude-code   (jsonl + statusline)│──┐
-│ codex         (todo)              │  │      ┌─────────┐    ┌────────┐    ┌─────────┐
-│ cursor        (todo)              │  ├──→   │ ingest  │──→ │ SQLite │──→ │ Nuxt UI │
+│ cursor        (state.vscdb)       │  │      ┌─────────┐    ┌────────┐    ┌─────────┐
+│ codex         (todo)              │  ├──→   │ ingest  │──→ │ SQLite │──→ │ Nuxt UI │
 │ otel-generic  (any OTLP)          │  │      │ (dedup) │    └────────┘    └─────────┘
 │ csv-import    (anything tabular)  │──┘      └─────────┘
 └───────────────────────────────────┘
@@ -104,10 +104,11 @@ Two hard rules of the contract:
 | Adapter | Phase | Source | Notes |
 |---|---|---|---|
 | `claude-code` | 1 (MVP) | `~/.claude/projects/**/*.jsonl` + statusline hook | reference adapter: full history + live limits |
+| `csv` | 1 | user-supplied CSV | library helpers; not auto-scanned |
+| `cursor` | 1.5 | local `state.vscdb` composer bubbles | shipped; coverage depends on IDE token fields |
 | `otel-generic` | 1.5 | OTLP receiver on `/v1/metrics` | instantly covers anything that can export OTel — including Claude Code without our script |
 | `csv-import` | 1.5 | file upload in the UI | the cheap universal entry path: OpenAI/Anthropic billing exports, anything tabular. Also a great demo mode |
 | `codex` | 2 | its local logs | study the format when we get there |
-| `cursor` | 2 | its local data | same |
 | `github-actions` | idea | CI minutes billing API | proof that "not only AI" is a property, not a slogan |
 
 The rule for additions: **a new adapter = a new file in `packages/adapters/`, zero changes to the core or the UI.** If adding a source requires touching the core, the contract was designed wrong — fix the contract.
@@ -139,6 +140,7 @@ nomnomtokens/
 │   │   │   ├── jsonl.ts        # log-line parser
 │   │   │   ├── statusline.ts   # hook stdin-payload parser
 │   │   │   └── index.ts        # Adapter implementation
+│   │   ├── cursor/             # state.vscdb bubbles
 │   │   └── csv/
 │   ├── db/            # Drizzle: schema/sqlite.ts (ph.1), schema/pg.ts (ph.2)
 │   └── cli/           # commander: init | scan | serve | statusline | doctor

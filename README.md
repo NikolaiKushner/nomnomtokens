@@ -10,9 +10,9 @@ projects, and when you'll hit your limit.
 npx nomnomtokens
 ```
 
-Claude Code today. The event contract is deliberately not AI-shaped, so other
-agents — and eventually CI minutes and cloud bills — plug in as adapters
-without touching the core.
+Claude Code today. Cursor when its local IDE database has token fields. The
+event contract is deliberately not AI-shaped, so other agents — and eventually
+CI minutes and cloud bills — plug in as adapters without touching the core.
 
 ## What you get
 
@@ -131,12 +131,18 @@ the core, the contract is wrong and that's a bug worth reporting.
 
 ## Roadmap
 
-Shipped: Claude Code adapter, CSV import, all six screens, limits with
-forecasting, live updates.
+Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), CSV import
+helpers, all six screens, limits with forecasting, live updates.
 
-Next: OTLP receiver (covers anything that exports OpenTelemetry), Codex and
-Cursor adapters, export, alerts. Then cloud mode — a second sink for the same
-events, never a rewrite, and never in the critical path.
+Cursor caveat: the IDE often stores zero token counts in local bubbles. We only
+emit events when numbers are present (exact `tokenCount`, or
+`tokensUsed` + delta). We do not estimate from message text. Sessions without
+local counts will not appear until Cursor writes them — or until a future
+optional CSV enrich from the Cursor dashboard.
+
+Next: OTLP receiver (covers anything that exports OpenTelemetry), Codex
+adapter, export, alerts. Then cloud mode — a second sink for the same events,
+never a rewrite, and never in the critical path.
 
 ## License
 
