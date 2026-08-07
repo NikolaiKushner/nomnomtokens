@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { costOf, resolveModelKey } from './pricing.js'
-import { forecastLimit, linearRegression, moodFor } from './forecast.js'
+import { currentWindowSnapshots, forecastLimit, linearRegression, moodFor } from './forecast.js'
 import { bucketStart, cacheHitRate, costPerKLines, heatmap, timeSeries } from './aggregate.js'
 import { scopeHash, scopeLabel } from './hash.js'
 import type { LimitSnapshot, SpendEvent } from './types.js'
@@ -23,6 +23,10 @@ describe('resolveModelKey', () => {
   it('normalises Cursor-style Claude ids', () => {
     expect(resolveModelKey('claude-4.5-sonnet-thinking')).toBe('claude-sonnet-4-5')
     expect(resolveModelKey('claude-4.6-opus-high-thinking')).toBe('claude-opus-4-6')
+  })
+  it('resolves Codex GPT-5.6 family ids', () => {
+    expect(resolveModelKey('gpt-5.6-terra')).toBe('gpt-5-6-terra')
+    expect(resolveModelKey('gpt-5.6-luna')).toBe('gpt-5-6-luna')
   })
 })
 
@@ -154,6 +158,7 @@ describe('forecasting', () => {
       { ts: base + 2 * 3_600_000, provider: 'p', window: '5h', usedPct: 5, resetsAt: null },
       { ts: base + 3 * 3_600_000, provider: 'p', window: '5h', usedPct: 15, resetsAt: null },
     ]
+    expect(currentWindowSnapshots(snaps).map(s => s.usedPct)).toEqual([5, 15])
     const f = forecastLimit(snaps, base + 3 * 3_600_000)!
     expect(f.samples).toBe(2)
     expect(f.burnRatePctPerHour).toBeGreaterThan(0)

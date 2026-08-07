@@ -43,7 +43,7 @@ The core knows nothing about Claude Code. It knows two record types — a **spen
 ┌─ adapters ────────────────────────┐
 │ claude-code   (jsonl + statusline)│──┐
 │ cursor        (state.vscdb)       │  │      ┌─────────┐    ┌────────┐    ┌─────────┐
-│ codex         (todo)              │  ├──→   │ ingest  │──→ │ SQLite │──→ │ Nuxt UI │
+│ codex         (rollout jsonl)     │  ├──→   │ ingest  │──→ │ SQLite │──→ │ Nuxt UI │
 │ otel-generic  (any OTLP)          │  │      │ (dedup) │    └────────┘    └─────────┘
 │ csv-import    (anything tabular)  │──┘      └─────────┘
 └───────────────────────────────────┘
@@ -108,7 +108,7 @@ Two hard rules of the contract:
 | `cursor` | 1.5 | local `state.vscdb` composer bubbles | shipped; coverage depends on IDE token fields |
 | `otel-generic` | 1.5 | OTLP receiver on `/v1/metrics` | instantly covers anything that can export OTel — including Claude Code without our script |
 | `csv-import` | 1.5 | file upload in the UI | the cheap universal entry path: OpenAI/Anthropic billing exports, anything tabular. Also a great demo mode |
-| `codex` | 2 | its local logs | study the format when we get there |
+| `codex` | 1.5 | `~/.codex/sessions/**/rollout-*.jsonl` | shipped; token_count + rate_limit rows |
 | `github-actions` | idea | CI minutes billing API | proof that "not only AI" is a property, not a slogan |
 
 The rule for additions: **a new adapter = a new file in `packages/adapters/`, zero changes to the core or the UI.** If adding a source requires touching the core, the contract was designed wrong — fix the contract.

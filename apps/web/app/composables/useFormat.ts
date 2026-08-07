@@ -56,6 +56,7 @@ export function formatDuration(ms: number): string {
 }
 
 export function formatDateTime(ts: number): string {
+  if (!Number.isFinite(ts)) return '—'
   return new Date(ts).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -66,12 +67,13 @@ export function formatDateTime(ts: number): string {
 
 export function formatDate(ts: number | string): string {
   const d = typeof ts === 'string' ? new Date(ts) : new Date(ts)
+  if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 /** "in 3h", "Thursday", "past due" — for limit forecasts. */
 export function formatWhen(ts: number | null, now = Date.now()): string {
-  if (ts === null) return 'not at this rate'
+  if (ts === null || !Number.isFinite(ts)) return 'not at this rate'
   const delta = ts - now
   if (delta <= 0) return 'now'
   const hours = delta / 3_600_000

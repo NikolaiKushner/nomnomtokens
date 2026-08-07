@@ -1,7 +1,12 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { claudeProjectsDir, cursorStateDbPath, detectAdapters } from '@nomnomtokens/adapters'
+import {
+  claudeProjectsDir,
+  codexSessionsDir,
+  cursorStateDbPath,
+  detectAdapters,
+} from '@nomnomtokens/adapters'
 import { defaultDbPath, openDb, Queries } from '@nomnomtokens/db'
 import { c, compactNumber, usd } from '../format.js'
 
@@ -22,6 +27,9 @@ export async function doctor(opts: { db?: string } = {}): Promise<void> {
 
   const cursorDb = cursorStateDbPath()
   check(existsSync(cursorDb), 'Cursor state database', cursorDb)
+
+  const codexSessions = codexSessionsDir()
+  check(existsSync(codexSessions), 'Codex session rollouts', codexSessions)
 
   const adapters = await detectAdapters()
   check(adapters.length > 0, `${adapters.length} adapter(s) detected`, adapters.map(a => a.name).join(', ') || 'none')

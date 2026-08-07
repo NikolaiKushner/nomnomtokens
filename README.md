@@ -12,9 +12,10 @@ npx nomnomtokens
 
 ![nomnomtokens dashboard — Timeline with spend chart and activity heatmap](docs/dashboard.png)
 
-Claude Code today. Cursor when its local IDE database has token fields. The
-event contract is deliberately not AI-shaped, so other agents — and eventually
-CI minutes and cloud bills — plug in as adapters without touching the core.
+Claude Code, Cursor (when its local IDE database has token fields), and Codex
+CLI/IDE session rollouts. The event contract is deliberately not AI-shaped, so
+other agents — and eventually CI minutes and cloud bills — plug in as adapters
+without touching the core.
 
 ## What you get
 
@@ -134,9 +135,10 @@ the core, the contract is wrong and that's a bug worth reporting.
 
 ## Roadmap
 
-Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), all six
-screens, limits with forecasting, live updates. CSV helpers exist in
-`packages/adapters` but are not wired into `scan` / the UI yet.
+Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), Codex
+adapter (`~/.codex/sessions/**/rollout-*.jsonl`), all six screens, limits with
+forecasting, live updates. CSV helpers exist in `packages/adapters` but are not
+wired into `scan` / the UI yet.
 
 Cursor caveat: the IDE often stores zero token counts in local bubbles. We only
 emit events when numbers are present (exact `tokenCount`, or
@@ -144,9 +146,8 @@ emit events when numbers are present (exact `tokenCount`, or
 local counts will not appear until Cursor writes them — or until a future
 optional CSV enrich from the Cursor dashboard.
 
-Next: wire up CSV import, OTLP receiver, Codex adapter, export, alerts. Then
-cloud mode — a second sink for the same events, never a rewrite, and never in
-the critical path.
+Next: wire up CSV import, OTLP receiver, export, alerts. Then cloud mode — a
+second sink for the same events, never a rewrite, and never in the critical path.
 
 ## License
 

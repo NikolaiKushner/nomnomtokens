@@ -60,7 +60,9 @@ export function parseLimits(payload: StatuslinePayload, now = Date.now()): Limit
       window,
       usedPct: raw.used_percentage,
       // the payload uses unix seconds; everything downstream is unix ms
-      resetsAt: typeof raw.resets_at === 'number' ? raw.resets_at * 1000 : null,
+      resetsAt: typeof raw.resets_at === 'number' && Number.isFinite(raw.resets_at)
+        ? raw.resets_at * 1000
+        : null,
     })
   }
   return out

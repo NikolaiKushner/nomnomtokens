@@ -97,6 +97,19 @@ never written to nomnomtokens storage. Many Cursor sessions store zero token
 counts locally — those bubbles are skipped rather than estimated from message
 text.
 
+## What the Codex adapter reads
+
+The Codex adapter tails `~/.codex/sessions/**/rollout-*.jsonl` (override root
+with `CODEX_HOME`). From each line it keeps only:
+
+- session id and a hashed project cwd (last path segment as the UI label)
+- model id from `turn_context`
+- per-turn `last_token_usage` counts (`input` / `cached` / `cache_write` / `output`)
+- rate-limit `used_percent` / `resets_at` windows when present
+
+Message content, tool inputs/outputs, diffs, git metadata, and auth files under
+`~/.codex` are never opened for ingest.
+
 ## Files on disk
 
 | Path | Contents |
@@ -104,6 +117,7 @@ text.
 | `~/.nomnomtokens/data.db` | events, scope labels, limit history, scan cursors |
 | `~/.claude/settings.json` | modified by `nnt init` to add `statusLine` — backed up to `.nnt-backup` first |
 | Cursor `state.vscdb` | **read only** by the Cursor adapter; never modified |
+| `~/.codex/sessions/**/*.jsonl` | **read only** by the Codex adapter; never modified |
 
 `nnt init` refuses to overwrite an existing status line unless you pass
 `--force`, and refuses to touch the file at all if it is not valid JSON.

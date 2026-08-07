@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./claude-code": "./src/claude-code/index.ts",
+    "./codex": "./src/codex/index.ts",
     "./cursor": "./src/cursor/index.ts",
     "./csv": "./src/csv/index.ts"
   },

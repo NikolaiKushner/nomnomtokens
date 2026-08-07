@@ -167,13 +167,14 @@ Register it:
 ```ts
 // packages/adapters/src/index.ts
 export function allAdapters(): Adapter[] {
-  return [new ClaudeCodeAdapter(), new CursorAdapter(), new MyToolAdapter()]
+  return [new ClaudeCodeAdapter(), new CursorAdapter(), new CodexAdapter(), new MyToolAdapter()]
 }
 ```
 
-Shipped adapters today: `claude-code` (JSONL + statusline) and `cursor`
-(local `state.vscdb` bubbles). Cursor coverage depends on the IDE writing
-token fields — see the README caveat.
+Shipped adapters today: `claude-code` (JSONL + statusline), `cursor`
+(local `state.vscdb` bubbles), and `codex` (`~/.codex/sessions/**/rollout-*.jsonl`
+token_count rows). Cursor coverage depends on the IDE writing token fields —
+see the README caveat.
 
 ## Testing
 

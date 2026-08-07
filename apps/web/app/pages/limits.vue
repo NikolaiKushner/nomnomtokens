@@ -9,14 +9,15 @@ const { data, pending } = useLimits()
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Limits</h1>
       <p class="text-muted-foreground mt-1 text-sm">
-        Window fill over time, with a linear projection from the current window's burn rate.
+        How full the current window is. Orange is measured; red is the burn-rate
+        projection to 100% if usage stays this fast.
       </p>
     </div>
 
     <EmptyState
       v-if="!pending && (data?.windows.length ?? 0) === 0"
       title="No limit history yet"
-      description="Subscription limits are only exposed to the status line hook — they appear nowhere in the transcript. Wire the hook up and limits start recording on the next Claude Code render."
+      description="Claude Code limits come from the status line hook (`nnt init`). Codex limits are read from session rollouts on scan."
       command="npx nomnomtokens init"
     />
 
