@@ -1,7 +1,11 @@
 node_modules/
+.pnpm-store/
 dist/
 .nuxt/
 .output/
+# staged Nuxt build for publishing — produced by scripts/bundle-dashboard.mjs
+/web/
+*.tgz
 .data/
 *.tsbuildinfo
 .DS_Store

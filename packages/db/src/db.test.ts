@@ -136,4 +136,19 @@ describe('queries', () => {
     state.set({ sourcePath: '/a.jsonl', mtime: 1, size: 2, offset: 3 })
     expect(state.get('/a.jsonl')).toEqual({ sourcePath: '/a.jsonl', mtime: 1, size: 2, offset: 3 })
   })
+
+  it('repairs Cursor Auto placeholder labels into null', () => {
+    const { repo, q } = fresh()
+    repo.ingest([
+      { type: 'event', event: event({ id: 'd1', unitLabel: 'default,default,default,default', costUsd: null }) },
+      { type: 'event', event: event({ id: 'd2', unitLabel: 'default', costUsd: null }) },
+      { type: 'event', event: event({ id: 'ok', unitLabel: 'grok-4.5', costUsd: 1 }) },
+    ])
+    expect(repo.repairPlaceholderLabels()).toBe(2)
+    const labels = q.byUnitLabel().map(r => r.unitLabel)
+    expect(labels).toContain(null)
+    expect(labels).toContain('grok-4.5')
+    expect(labels).not.toContain('default')
+    expect(labels).not.toContain('default,default,default,default')
+  })
 })

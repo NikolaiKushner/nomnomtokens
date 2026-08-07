@@ -1,7 +1,9 @@
 import type { Adapter } from '@nomnomtokens/core'
 import { ClaudeCodeAdapter } from './claude-code/index.js'
+import { CursorAdapter } from './cursor/index.js'
 
 export * from './claude-code/index.js'
+export * from './cursor/index.js'
 export * from './csv/index.js'
 
 /**
@@ -12,7 +14,7 @@ export * from './csv/index.js'
  * wrong — fix the contract, not the adapter. See docs/adapters.md.
  */
 export function allAdapters(): Adapter[] {
-  return [new ClaudeCodeAdapter()]
+  return [new ClaudeCodeAdapter(), new CursorAdapter()]
 }
 
 export async function detectAdapters(): Promise<Adapter[]> {

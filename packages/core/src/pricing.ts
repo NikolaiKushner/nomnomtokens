@@ -49,6 +49,21 @@ export const PRICES: Record<string, ModelPrice> = {
   'claude-haiku-4-5': { input: 1, output: 5 },
   'claude-3-5-haiku': { input: 0.8, output: 4 },
   'claude-3-haiku': { input: 0.25, output: 1.25 },
+
+  // Cursor-routed third-party ids (public list prices; Composer itself is unpriced).
+  'gpt-5.2': { input: 1.75, output: 14 },
+  'gpt-5-2': { input: 1.75, output: 14 },
+  'gpt-5.2-codex': { input: 1.75, output: 14 },
+  'gpt-5-2-codex': { input: 1.75, output: 14 },
+  'gpt-5': { input: 1.25, output: 10 },
+  'gpt-4.1': { input: 2, output: 8 },
+  'gpt-4-1': { input: 2, output: 8 },
+  'gemini-3-flash': { input: 0.5, output: 3 },
+  'gemini-2.5-pro': { input: 1.25, output: 10 },
+  'gemini-2-5-pro': { input: 1.25, output: 10 },
+  'grok-4.5': { input: 3, output: 15 },
+  'grok-4-5': { input: 3, output: 15 },
+  'grok-code-fast-1': { input: 0.2, output: 1.5 },
 }
 
 /**
@@ -60,16 +75,43 @@ export function isSynthetic(model: string | null | undefined): boolean {
   return typeof model === 'string' && model.trim().startsWith('<')
 }
 
+/**
+ * Cursor writes Anthropic ids as `claude-4.5-sonnet-thinking` rather than
+ * `claude-sonnet-4-5`. Flip the family/version order when we recognise the
+ * pattern so the existing Claude price rows still match.
+ */
+function normalizeCursorClaudeId(id: string): string {
+  const m = id.match(/^claude-(\d+(?:-\d+)*)-(sonnet|opus|haiku)(?:-.*)?$/)
+  if (!m) return id
+  return `claude-${m[2]}-${m[1]}`
+}
+
 export function resolveModelKey(model: string | null | undefined): string | null {
   if (!model) return null
   const id = model.trim().toLowerCase()
   if (!id || isSynthetic(id)) return null
 
-  const normalized = id
-    .replace(/^anthropic\./, '')
-    .replace(/-\d{8}$/, '')
-    .replace(/-fast$/, '')
-    .replace(/\[1m\]$/, '')
+  // Cursor's `default` / proprietary Composer models have no public token price.
+  // Also collapse repeated Auto placeholders: `default,default,default,default`.
+  if (
+    id === 'default'
+    || id.startsWith('composer-')
+    || id.split(',').every(p => p.trim() === 'default')
+  ) {
+    return null
+  }
+
+  const normalized = normalizeCursorClaudeId(
+    id
+      .replace(/^anthropic\./, '')
+      .replace(/\./g, '-')
+      .replace(/-thinking$/, '')
+      .replace(/-high-thinking$/, '')
+      .replace(/-high$/, '')
+      .replace(/-\d{8}$/, '')
+      .replace(/-fast$/, '')
+      .replace(/\[1m\]$/, ''),
+  )
 
   if (PRICES[normalized]) return normalized
 

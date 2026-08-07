@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# Publishing to npm cannot be undone or overwritten, so never let two runs race.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Accumulates merged commits into an open "chore(main): release X.Y.Z" PR.
+  # Merging a normal PR does NOT publish; merging the release PR does.
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for npm provenance: npm verifies the package was built by this
+      # workflow, from this commit, and shows a "Built and signed" badge.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The tag release-please just created, not whatever main has drifted
+          # to since — publish exactly the reviewed commit.
+          ref: ${{ needs.release-please.outputs.tag }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm rebuild better-sqlite3
+
+      # Re-verified against the tag. CI already checked the branch, but the
+      # thing being published is what must be green.
+      - run: pnpm -r test
+
+      - name: Build dashboard and CLI bundle
+        run: pnpm build
+
+      - name: Confirm the tarball contains what it should
+        run: |
+          npm pack --ignore-scripts
+          tar tzf nomnomtokens-*.tgz > files.txt
+          for required in package/dist/index.js package/bin/cli.js package/web/server/index.mjs; do
+            grep -qx "$required" files.txt || { echo "::error::missing $required"; exit 1; }
+          done
+          echo "tarball ok ($(wc -l < files.txt) files)"
+
+      - name: Publish to npm
+        # --ignore-scripts because pnpm build already ran; without it prepack
+        # rebuilds the whole dashboard a second time.
+        run: npm publish --provenance --access public --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Published \`nomnomtokens@${{ needs.release-please.outputs.version }}\`"
+            echo ""
+            echo "- npm: https://www.npmjs.com/package/nomnomtokens"
+            echo "- try it: \`npx nomnomtokens@${{ needs.release-please.outputs.version }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

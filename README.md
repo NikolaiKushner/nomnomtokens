@@ -10,9 +10,11 @@ projects, and when you'll hit your limit.
 npx nomnomtokens
 ```
 
-Claude Code today. The event contract is deliberately not AI-shaped, so other
-agents — and eventually CI minutes and cloud bills — plug in as adapters
-without touching the core.
+![nomnomtokens dashboard — Timeline with spend chart and activity heatmap](docs/dashboard.png)
+
+Claude Code today. Cursor when its local IDE database has token fields. The
+event contract is deliberately not AI-shaped, so other agents — and eventually
+CI minutes and cloud bills — plug in as adapters without touching the core.
 
 ## What you get
 
@@ -103,9 +105,18 @@ raw files, matching exactly on row count and all five token buckets. See
 
 ```sh
 pnpm install
-pnpm dev                        # dashboard with live reload on :4269
-pnpm test                       # unit tests
-pnpm --filter @nomnomtokens/web build
+pnpm start        # build if needed, scan history, open the dashboard
+pnpm dev          # Nuxt live reload only (no scan) on :4269
+pnpm test         # unit tests
+pnpm build        # Nuxt build, staged to web/, plus the bundled CLI in dist/
+```
+
+To check the published artefact rather than the workspace:
+
+```sh
+npm pack
+cd $(mktemp -d) && npm init -y && npm i /path/to/nomnomtokens-0.1.0.tgz
+./node_modules/.bin/nnt doctor
 ```
 
 Layout: `packages/core` (types, pricing, aggregation — isomorphic, zero Node
@@ -123,12 +134,19 @@ the core, the contract is wrong and that's a bug worth reporting.
 
 ## Roadmap
 
-Shipped: Claude Code adapter, CSV import, all six screens, limits with
-forecasting, live updates.
+Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), all six
+screens, limits with forecasting, live updates. CSV helpers exist in
+`packages/adapters` but are not wired into `scan` / the UI yet.
 
-Next: OTLP receiver (covers anything that exports OpenTelemetry), Codex and
-Cursor adapters, export, alerts. Then cloud mode — a second sink for the same
-events, never a rewrite, and never in the critical path.
+Cursor caveat: the IDE often stores zero token counts in local bubbles. We only
+emit events when numbers are present (exact `tokenCount`, or
+`tokensUsed` + delta). We do not estimate from message text. Sessions without
+local counts will not appear until Cursor writes them — or until a future
+optional CSV enrich from the Cursor dashboard.
+
+Next: wire up CSV import, OTLP receiver, Codex adapter, export, alerts. Then
+cloud mode — a second sink for the same events, never a rewrite, and never in
+the critical path.
 
 ## License
 

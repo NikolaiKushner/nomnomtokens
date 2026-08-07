@@ -1,17 +1,8 @@
 #!/usr/bin/env node
-// nomnomtokens v0.0.1 — placeholder while the real thing is being built.
-
-const art = `
-   ┌─────────────────────────────────┐
-   │      ( ˘▽˘)っ  nom nom nom      │
-   │                                 │
-   │   your agent is eating tokens   │
-   │   soon you'll see how many      │
-   │                                 │
-   │   v0.0.1 · work in progress     │
-   │   github.com/NikolaiKushner/nomnomtokens │
-   └─────────────────────────────────┘
-`;
-console.log(art);
-console.log('Planned: local-first dashboard for AI coding agent usage —');
-console.log('spend, tokens, limits, forecasts. Star the repo to follow along.\n');
+// Stable entry point. The published `bin` path has to keep working across
+// versions, so it stays here and forwards to the bundle rather than moving.
+import('../dist/index.js').catch((error) => {
+  console.error(`nomnomtokens failed to start: ${error?.message ?? error}`)
+  console.error('This install looks incomplete. Try: npm i -g nomnomtokens@latest')
+  process.exit(1)
+})

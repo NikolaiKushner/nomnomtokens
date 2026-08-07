@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { claudeProjectsDir, detectAdapters } from '@nomnomtokens/adapters'
+import { claudeProjectsDir, cursorStateDbPath, detectAdapters } from '@nomnomtokens/adapters'
 import { defaultDbPath, openDb, Queries } from '@nomnomtokens/db'
 import { c, compactNumber, usd } from '../format.js'
 
@@ -19,6 +19,9 @@ export async function doctor(opts: { db?: string } = {}): Promise<void> {
   console.log(c.bold('Sources'))
   const projects = claudeProjectsDir()
   check(existsSync(projects), 'Claude Code transcripts', projects)
+
+  const cursorDb = cursorStateDbPath()
+  check(existsSync(cursorDb), 'Cursor state database', cursorDb)
 
   const adapters = await detectAdapters()
   check(adapters.length > 0, `${adapters.length} adapter(s) detected`, adapters.map(a => a.name).join(', ') || 'none')

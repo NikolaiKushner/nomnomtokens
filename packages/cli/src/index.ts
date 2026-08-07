@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
 import { doctor } from './commands/doctor.js'
 import { init } from './commands/init.js'
@@ -6,12 +9,32 @@ import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
 import { statusline } from './commands/statusline.js'
 
+/** Walk up from this file until we find the published root package.json. */
+function packageVersion(): string {
+  let dir = dirname(fileURLToPath(import.meta.url))
+  for (let i = 0; i < 8; i++) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+        name?: string
+        version?: string
+      }
+      if (pkg.name === 'nomnomtokens' && pkg.version) return pkg.version
+    } catch {
+      // keep walking
+    }
+    const parent = resolve(dir, '..')
+    if (parent === dir) break
+    dir = parent
+  }
+  return '0.0.0'
+}
+
 const program = new Command()
 
 program
   .name('nnt')
   .description('nom nom nom — your agent is eating tokens. The dashboard shows exactly how many.')
-  .version('0.1.0')
+  .version(packageVersion())
   .option('--db <path>', 'database file (default: ~/.nomnomtokens/data.db)')
 
 program
@@ -63,11 +86,24 @@ program
     await doctor({ db: program.opts().db as string | undefined })
   })
 
-// `npx nomnomtokens` with no arguments is the advertised entry point, and it
-// should do the obvious thing rather than print help at someone who just
-// wanted the dashboard.
-if (process.argv.length <= 2) {
-  await serve({})
-} else {
-  await program.parseAsync(process.argv)
-}
+/**
+ * `npx nomnomtokens` is the advertised entry point, so an invocation with no
+ * subcommand means "open the dashboard" rather than "print help at someone who
+ * just wanted the dashboard".
+ *
+ * That has to hold for `nnt --port 5000` too, not only for a bare `nnt` — the
+ * flags belong to serve, and making the user type the word `serve` to use them
+ * is the kind of papercut that gets a tool uninstalled. So: if the arguments
+ * name no command and aren't asking for help, insert `serve`.
+ */
+const COMMANDS = new Set(['scan', 'serve', 'init', 'statusline', 'doctor', 'help'])
+const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
+
+const args = process.argv.slice(2)
+const isImplicitServe
+  = !args.some(arg => COMMANDS.has(arg))
+    && !args.some(arg => META_FLAGS.has(arg))
+
+await program.parseAsync(
+  isImplicitServe ? [...process.argv.slice(0, 2), 'serve', ...args] : process.argv,
+)

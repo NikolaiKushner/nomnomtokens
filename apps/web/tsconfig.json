@@ -1,0 +1,5 @@
+{
+  // Nuxt generates the real configuration into .nuxt during dev/build; this
+  // file just points editors and `nuxt typecheck` at it.
+  "extends": "./.nuxt/tsconfig.json"
+}

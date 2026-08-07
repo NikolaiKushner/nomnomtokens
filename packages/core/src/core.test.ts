@@ -16,6 +16,13 @@ describe('resolveModelKey', () => {
     expect(resolveModelKey('<synthetic>')).toBeNull()
     expect(resolveModelKey(null)).toBeNull()
     expect(resolveModelKey('gpt-4')).toBeNull()
+    expect(resolveModelKey('composer-2.5')).toBeNull()
+    expect(resolveModelKey('default')).toBeNull()
+    expect(resolveModelKey('default,default,default,default')).toBeNull()
+  })
+  it('normalises Cursor-style Claude ids', () => {
+    expect(resolveModelKey('claude-4.5-sonnet-thinking')).toBe('claude-sonnet-4-5')
+    expect(resolveModelKey('claude-4.6-opus-high-thinking')).toBe('claude-opus-4-6')
   })
 })
 

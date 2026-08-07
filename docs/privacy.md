@@ -79,12 +79,31 @@ PR number and worktree details. We extract exactly:
 
 Everything else in the payload is read and discarded. It is never written.
 
+## What the Cursor adapter reads
+
+The Cursor adapter opens Cursor's local `state.vscdb` (and maps workspaces via
+`workspaceStorage/*/workspace.json`) in **read-only** mode. From each bubble it
+keeps only:
+
+- bubble / composer ids (dedup keys)
+- timestamps
+- `tokenCount.inputTokens` / `outputTokens` when non-zero
+- `contextWindowStatusAtCreation.tokensUsed` when exact counts are absent
+- model id from `composerData.modelConfig`
+- line-change totals as numbers
+
+Bubble text, diffs, file paths, tool payloads, and anything else in the row are
+never written to nomnomtokens storage. Many Cursor sessions store zero token
+counts locally — those bubbles are skipped rather than estimated from message
+text.
+
 ## Files on disk
 
 | Path | Contents |
 |---|---|
 | `~/.nomnomtokens/data.db` | events, scope labels, limit history, scan cursors |
 | `~/.claude/settings.json` | modified by `nnt init` to add `statusLine` — backed up to `.nnt-backup` first |
+| Cursor `state.vscdb` | **read only** by the Cursor adapter; never modified |
 
 `nnt init` refuses to overwrite an existing status line unless you pass
 `--force`, and refuses to touch the file at all if it is not valid JSON.

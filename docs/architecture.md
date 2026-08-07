@@ -14,7 +14,7 @@ Everything runs on the user's machine. There is no network hop in the data path.
 |---|---|---|
 | `packages/core` | `SpendEvent` / `LimitSnapshot` types, pricing, aggregation, forecasting, scope hashing | nothing — isomorphic, no Node API |
 | `packages/db` | Drizzle schema, connection, upsert repository, read queries | core, better-sqlite3 |
-| `packages/adapters` | `claude-code` (jsonl + statusline), `csv` | core |
+| `packages/adapters` | `claude-code` (jsonl + statusline), `cursor` (state.vscdb), `csv` | core |
 | `packages/cli` | `init`, `scan`, `serve`, `statusline`, `doctor` | all of the above |
 | `apps/web` | Nuxt 4 UI + Nitro API + SSE | all of the above |
 

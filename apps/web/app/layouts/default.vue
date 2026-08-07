@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { Activity, BarChart3, Boxes, Clock, FolderTree, Gauge, Moon, Sun } from 'lucide-vue-next'
+import { Activity, BarChart3, Boxes, Clock, FolderTree, Gauge, Monitor, Moon, Sun } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 
 const route = useRoute()
 const { connected } = useLive()
 const { data: meta } = useMeta()
+const theme = useTheme()
+
+const THEME_ICON = { system: Monitor, light: Sun, dark: Moon }
+const THEME_LABEL = {
+  system: 'Theme: following your system',
+  light: 'Theme: light',
+  dark: 'Theme: dark',
+}
 
 const paletteOpen = ref(false)
 
@@ -18,22 +26,6 @@ const NAV = [
 ]
 
 const isActive = (to: string) => (to === '/' ? route.path === '/' : route.path.startsWith(to))
-
-// Dark by default — this is a tool that sits open next to a terminal.
-const dark = ref(true)
-onMounted(() => {
-  const stored = localStorage.getItem('nnt-theme')
-  dark.value = stored ? stored === 'dark' : true
-  apply()
-})
-function toggleTheme() {
-  dark.value = !dark.value
-  localStorage.setItem('nnt-theme', dark.value ? 'dark' : 'light')
-  apply()
-}
-function apply() {
-  document.documentElement.classList.toggle('dark', dark.value)
-}
 
 function onKeydown(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -60,9 +52,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="bg-background min-h-screen">
     <header class="bg-background/80 sticky top-0 z-30 border-b backdrop-blur">
       <div class="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <NuxtLink to="/" class="flex shrink-0 items-center gap-2">
-          <Mascot :size="26" mood="content" />
-          <span class="font-semibold tracking-tight">nomnomtokens</span>
+        <NuxtLink to="/" class="flex shrink-0 items-center" aria-label="nomnomtokens home">
+          <Logo :size="28" />
         </NuxtLink>
 
         <nav class="hidden items-center gap-0.5 md:flex">
@@ -82,7 +73,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </nav>
 
         <div class="ml-auto flex items-center gap-2">
-          <UiTooltip :content="connected ? 'Live — updates stream as your agent works' : 'Reconnecting…'">
+          <!-- side="bottom": the header is the topmost element on the page, so a
+               tooltip opening upwards escapes the viewport and clips. -->
+          <UiTooltip
+            side="bottom"
+            :content="connected ? 'Live — updates stream as your agent works' : 'Reconnecting…'"
+          >
             <span class="flex items-center gap-1.5 text-xs">
               <span
                 class="size-1.5 rounded-full"
@@ -97,10 +93,23 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <UiKbd>⌘K</UiKbd>
           </UiButton>
 
-          <UiButton variant="ghost" size="icon-sm" aria-label="Toggle theme" @click="toggleTheme">
-            <Sun v-if="dark" class="size-4" />
-            <Moon v-else class="size-4" />
-          </UiButton>
+          <UiTooltip side="bottom" :content="`${THEME_LABEL[theme.preference.value]} — click to change`">
+            <UiButton
+              variant="ghost"
+              size="icon-sm"
+              :aria-label="THEME_LABEL[theme.preference.value]"
+              @click="theme.cycle()"
+            >
+              <!-- ClientOnly: the preference is unknown during SSR, and
+                   rendering the wrong icon would be a hydration mismatch. -->
+              <ClientOnly>
+                <component :is="THEME_ICON[theme.preference.value]" class="size-4" />
+                <template #fallback>
+                  <Monitor class="size-4" />
+                </template>
+              </ClientOnly>
+            </UiButton>
+          </UiTooltip>
         </div>
       </div>
 

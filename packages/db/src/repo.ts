@@ -153,4 +153,33 @@ export class Repo {
   eventCount(): number {
     return this.sqlite.prepare('SELECT COUNT(*) AS c FROM events').pluck().get() as number
   }
+
+  /**
+   * Collapse Cursor Auto-mode placeholders (`default`, `default,default,…`)
+   * into a null unit_label so the UI shows a single "unknown" bucket.
+   */
+  repairPlaceholderLabels(): number {
+    const rows = this.sqlite.prepare(
+      `SELECT DISTINCT unit_label AS label FROM events WHERE unit_label IS NOT NULL`,
+    ).all() as Array<{ label: string }>
+
+    let changes = 0
+    const update = this.sqlite.prepare(
+      `UPDATE events SET unit_label = NULL WHERE unit_label = ?`,
+    )
+    const run = this.sqlite.transaction(() => {
+      for (const { label } of rows) {
+        if (!isDefaultPlaceholderLabel(label)) continue
+        changes += update.run(label).changes
+      }
+    })
+    run()
+    return changes
+  }
+}
+
+/** True when a stored model id is only Cursor's Auto `default` (possibly repeated). */
+function isDefaultPlaceholderLabel(label: string): boolean {
+  const parts = label.split(',').map(p => p.trim().toLowerCase()).filter(Boolean)
+  return parts.length > 0 && parts.every(p => p === 'default')
 }
