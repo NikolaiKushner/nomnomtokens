@@ -92,7 +92,14 @@ export function resolveModelKey(model: string | null | undefined): string | null
   if (!id || isSynthetic(id)) return null
 
   // Cursor's `default` / proprietary Composer models have no public token price.
-  if (id === 'default' || id.startsWith('composer-')) return null
+  // Also collapse repeated Auto placeholders: `default,default,default,default`.
+  if (
+    id === 'default'
+    || id.startsWith('composer-')
+    || id.split(',').every(p => p.trim() === 'default')
+  ) {
+    return null
+  }
 
   const normalized = normalizeCursorClaudeId(
     id

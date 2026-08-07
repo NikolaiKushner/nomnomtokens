@@ -10,6 +10,8 @@ projects, and when you'll hit your limit.
 npx nomnomtokens
 ```
 
+![nomnomtokens dashboard — Timeline with spend chart and activity heatmap](docs/dashboard.png)
+
 Claude Code today. Cursor when its local IDE database has token fields. The
 event contract is deliberately not AI-shaped, so other agents — and eventually
 CI minutes and cloud bills — plug in as adapters without touching the core.

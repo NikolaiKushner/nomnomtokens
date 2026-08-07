@@ -68,6 +68,11 @@ export async function scan(opts: ScanOptions = {}): Promise<void> {
     }
   }
 
+  const repaired = repo.repairPlaceholderLabels()
+  if (!opts.quiet && repaired > 0) {
+    console.log(c.dim(`normalized ${repaired} Cursor Auto placeholder label(s) → unknown`))
+  }
+
   if (!opts.quiet) {
     const todayStart = bucketStart(Date.now(), 'day')
     const today = queries.totals({ from: todayStart, kind: 'tokens' })

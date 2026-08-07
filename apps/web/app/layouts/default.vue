@@ -52,9 +52,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="bg-background min-h-screen">
     <header class="bg-background/80 sticky top-0 z-30 border-b backdrop-blur">
       <div class="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <NuxtLink to="/" class="flex shrink-0 items-center gap-2">
-          <Mascot :size="26" mood="content" />
-          <span class="font-semibold tracking-tight">nomnomtokens</span>
+        <NuxtLink to="/" class="flex shrink-0 items-center" aria-label="nomnomtokens home">
+          <Logo :size="28" />
         </NuxtLink>
 
         <nav class="hidden items-center gap-0.5 md:flex">

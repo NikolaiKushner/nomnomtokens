@@ -53,14 +53,26 @@ function decodeValue(value: unknown): unknown {
   return value
 }
 
+/**
+ * Cursor often stores Auto-mode as `default`, and occasionally as a repeated
+ * join (`default,default,default,default`). Neither is a real model id — treat
+ * them as absent so the UI buckets them under "unknown".
+ */
+export function normalizeCursorModelName(raw: string | null | undefined): string | null {
+  if (raw == null) return null
+  const name = raw.trim()
+  if (!name) return null
+
+  const parts = name.split(',').map(p => p.trim().toLowerCase()).filter(Boolean)
+  if (parts.length > 0 && parts.every(p => p === 'default')) return null
+
+  return name === 'default' ? null : name
+}
+
 function modelFromConfig(mc: ComposerDataRow['modelConfig']): string | null {
   if (!mc) return null
-  if (typeof mc === 'string') {
-    const t = mc.trim()
-    return t && t !== 'default' ? t : null
-  }
-  const name = (mc.modelName ?? mc.model ?? '').trim()
-  return name && name !== 'default' ? name : null
+  if (typeof mc === 'string') return normalizeCursorModelName(mc)
+  return normalizeCursorModelName(mc.modelName ?? mc.model ?? null)
 }
 
 function workspacePathFromHeader(

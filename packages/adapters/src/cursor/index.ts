@@ -14,7 +14,7 @@ import {
 
 export * from './parse.js'
 export * from './paths.js'
-export { loadWorkspaceMap, readCursorSnapshot } from './db.js'
+export { loadWorkspaceMap, normalizeCursorModelName, readCursorSnapshot } from './db.js'
 
 export interface CursorAdapterOptions {
   /** Override Cursor user-data root (tests). */
