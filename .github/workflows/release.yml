@@ -58,11 +58,14 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # Node 24 ships npm >= 11.5.1, required for Trusted Publisher OIDC.
+      # Do NOT set registry-url here: setup-node would write
+      # //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} into .npmrc and
+      # npm would skip OIDC, then fail the PUT with a misleading E404.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm rebuild better-sqlite3
@@ -84,14 +87,14 @@ jobs:
           echo "tarball ok ($(wc -l < files.txt) files)"
 
       - name: Publish to npm
-        # Auth via npm Trusted Publisher (OIDC + id-token).
-        # setup-node with registry-url injects NODE_AUTH_TOKEN from secrets;
-        # a classic NPM_TOKEN (or an empty one) overrides OIDC and fails the
-        # PUT with 404/ENEEDAUTH. Clear it so provenance publish uses OIDC.
+        # Trusted Publisher OIDC only. A classic NPM_TOKEN in repo secrets
+        # will still break this — delete it under Settings → Secrets.
         # --ignore-scripts because pnpm build already ran; without it prepack
         # rebuilds the whole dashboard a second time.
         run: |
-          unset NODE_AUTH_TOKEN
+          unset NODE_AUTH_TOKEN NPM_TOKEN
+          rm -f "${NPM_CONFIG_USERCONFIG:-}" "$HOME/.npmrc"
+          npm --version
           npm publish --provenance --access public --ignore-scripts
 
       - name: Summarise
