@@ -129,59 +129,68 @@ const flatIndex = (group: string, i: number) =>
 </script>
 
 <template>
+  <!--
+    A modal <dialog> normally centres itself with `margin: auto`, but Tailwind's
+    preflight sets `margin: 0` on every element and quietly kills that — the
+    palette ended up pinned to the left edge of the screen. So the dialog is
+    stretched to the viewport itself and the panel inside is centred with
+    flexbox, which doesn't depend on the UA stylesheet at all.
+    max-w-none / max-h-none override the UA's own `max-width: calc(100% - …)`.
+  -->
   <dialog
     ref="dialog"
-    class="bg-transparent p-0 backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in"
+    class="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden bg-transparent p-0 backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     aria-label="Command palette"
     @close="emit('close')"
-    @click.self="emit('close')"
   >
-    <div
-      class="bg-popover text-popover-foreground mt-[15vh] w-[min(90vw,34rem)] overflow-hidden rounded-xl border shadow-lg"
-      @keydown="onKeydown"
-    >
-      <div class="flex items-center gap-2 border-b px-3">
-        <Search class="text-muted-foreground size-4 shrink-0" />
-        <input
-          v-model="query"
-          autofocus
-          role="combobox"
-          aria-expanded="true"
-          aria-controls="command-results"
-          :aria-activedescendant="`command-${active}`"
-          placeholder="Jump to a page, range or project…"
-          class="placeholder:text-muted-foreground h-11 w-full bg-transparent text-sm outline-none"
-        >
-        <UiKbd>esc</UiKbd>
-      </div>
-
-      <ul id="command-results" role="listbox" class="max-h-80 overflow-y-auto p-1">
-        <li v-if="results.length === 0" class="text-muted-foreground p-6 text-center text-sm">
-          Nothing matches “{{ query }}”.
-        </li>
-
-        <template v-for="[group, items] in grouped" :key="group">
-          <li class="text-muted-foreground px-2 pt-3 pb-1 text-xs font-medium">{{ group }}</li>
-          <li
-            v-for="(cmd, i) in items"
-            :id="`command-${flatIndex(group, i)}`"
-            :key="cmd.id"
-            role="option"
-            :aria-selected="active === flatIndex(group, i)"
-            :class="cn(
-              'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-              active === flatIndex(group, i) && 'bg-accent text-accent-foreground',
-            )"
-            @click="run(cmd)"
-            @mousemove="active = flatIndex(group, i)"
+    <div class="flex h-full items-start justify-center p-4 pt-[12vh]" @click.self="emit('close')">
+      <div
+        class="bg-popover text-popover-foreground w-full max-w-lg overflow-hidden rounded-xl border shadow-lg"
+        @keydown="onKeydown"
+      >
+        <div class="flex items-center gap-2 border-b px-3">
+          <Search class="text-muted-foreground size-4 shrink-0" />
+          <input
+            v-model="query"
+            autofocus
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="command-results"
+            :aria-activedescendant="`command-${active}`"
+            placeholder="Jump to a page, range or project…"
+            class="placeholder:text-muted-foreground h-11 w-full bg-transparent text-sm outline-none"
           >
-            <Folder v-if="cmd.group === 'Projects'" class="size-4 opacity-60" />
-            <ArrowRight v-else class="size-4 opacity-60" />
-            <span class="truncate">{{ cmd.label }}</span>
-            <span v-if="cmd.hint" class="text-muted-foreground ml-auto text-xs">{{ cmd.hint }}</span>
+          <UiKbd>esc</UiKbd>
+        </div>
+
+        <ul id="command-results" role="listbox" class="max-h-[60vh] overflow-y-auto p-1">
+          <li v-if="results.length === 0" class="text-muted-foreground p-6 text-center text-sm">
+            Nothing matches “{{ query }}”.
           </li>
-        </template>
-      </ul>
+
+          <template v-for="[group, items] in grouped" :key="group">
+            <li class="text-muted-foreground px-2 pt-3 pb-1 text-xs font-medium">{{ group }}</li>
+            <li
+              v-for="(cmd, i) in items"
+              :id="`command-${flatIndex(group, i)}`"
+              :key="cmd.id"
+              role="option"
+              :aria-selected="active === flatIndex(group, i)"
+              :class="cn(
+                'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+                active === flatIndex(group, i) && 'bg-accent text-accent-foreground',
+              )"
+              @click="run(cmd)"
+              @mousemove="active = flatIndex(group, i)"
+            >
+              <Folder v-if="cmd.group === 'Projects'" class="size-4 opacity-60" />
+              <ArrowRight v-else class="size-4 opacity-60" />
+              <span class="truncate">{{ cmd.label }}</span>
+              <span v-if="cmd.hint" class="text-muted-foreground ml-auto text-xs">{{ cmd.hint }}</span>
+            </li>
+          </template>
+        </ul>
+      </div>
     </div>
   </dialog>
 </template>

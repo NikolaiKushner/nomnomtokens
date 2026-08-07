@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch makes the previous run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Squash-merging makes the PR title the commit message on main, and
+  # release-please reads those commit messages to decide the version bump. A
+  # non-conventional title therefore silently produces no release at all —
+  # cheaper to catch here than to wonder later why nothing published.
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Title must be a conventional commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$TITLE" =~ ^(feat|fix|docs|chore|refactor|perf|test|build|ci|style|revert)(\(.+\))?!?:\ .+ ]]; then
+            echo "::error::PR title is not a conventional commit: '$TITLE'"
+            echo ""
+            echo "Expected e.g.:"
+            echo "  feat: add subscription billing mode"
+            echo "  fix(web): theme resets on navigation"
+            echo "  docs: explain the dedup key"
+            echo ""
+            echo "feat -> minor bump, fix -> patch, others -> no release."
+            echo "Breaking change: add ! before the colon (feat!: ...)."
+            exit 1
+          fi
+          echo "ok: $TITLE"
+
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The lowest version package.json claims to support — if it builds
+          # here it builds on everything above.
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # pnpm 10 refuses to run dependency build scripts unless allow-listed, and
+      # better-sqlite3 is a native module that is useless unbuilt. Explicit
+      # rather than relying on the allow-list resolving the same way in CI.
+      - name: Build native dependencies
+        run: pnpm rebuild better-sqlite3
+
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+      - name: Build dashboard and CLI bundle
+        run: pnpm build
+
+      - name: Pack the publishable tarball
+        run: npm pack --ignore-scripts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: nomnomtokens-*.tgz
+          retention-days: 7
+
+  # The only test that exercises what users actually get. It caught a real bug
+  # the workspace could not: the CLI resolved fine from source but the published
+  # bundle could not find its own dependencies.
+  smoke:
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [20, 24]
+
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+
+      - name: Install the tarball into a clean project
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/cleanroom" && cd "$RUNNER_TEMP/cleanroom"
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE"/nomnomtokens-*.tgz
+
+      - name: Run it on a machine with no agent history
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/cleanroom"
+          export HOME="$RUNNER_TEMP/fakehome"
+          mkdir -p "$HOME"
+
+          # Must succeed and exit 0 even with nothing to scan — a first run on a
+          # fresh machine is the most common first impression there is.
+          ./node_modules/.bin/nnt doctor
+          ./node_modules/.bin/nnt --version
+          ./node_modules/.bin/nnt --help > /dev/null
+
+      - name: Serve, and confirm the dashboard answers
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/cleanroom"
+          export HOME="$RUNNER_TEMP/fakehome"
+
+          ./node_modules/.bin/nnt --port 4269 --no-open > serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sSf -o /dev/null "http://localhost:4269/"; then break; fi
+            sleep 2
+          done
+
+          fail=0
+          for path in / /timeline /scopes /providers /sessions /limits /api/meta; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "http://localhost:4269$path" || echo 000)
+            echo "$code $path"
+            [ "$code" = "200" ] || fail=1
+          done
+
+          if [ "$fail" != "0" ]; then
+            echo "::error::dashboard did not serve every route"
+            cat serve.log
+            exit 1
+          fi
