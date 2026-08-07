@@ -15,8 +15,9 @@ useHead({
     tagPosition: 'head',
     innerHTML: `(function(){try{`
       + `var p=localStorage.getItem('nnt-theme');`
-      + `if(p!=='light'&&p!=='dark'&&p!=='system')p='system';`
-      + `var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);`
+      + `if(p==='system')p=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';`
+      + `if(p!=='light'&&p!=='dark')p='dark';`
+      + `var d=p==='dark';`
       + `document.documentElement.classList.toggle('dark',d);`
       + `document.documentElement.style.colorScheme=d?'dark':'light';`
       + `}catch(e){}})()`,
