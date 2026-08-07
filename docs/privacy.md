@@ -132,6 +132,10 @@ rates to `~/.nomnomtokens/prices.json` with no network. The only outbound call
 is opt-in — `nnt prices refresh --from <https://…>` — and it sends nothing but
 the GET itself (no account, no telemetry, no path or prompt data).
 
+Alert webhooks are also opt-in (`alerts.json` `webhook` or
+`nnt alerts check --webhook`). The POST body contains only threshold hits
+(percentages and dollar amounts) — never prompts, paths, or diffs.
+
 ## Phase 2, when it arrives
 
 Cloud mode is opt-in and additive: local SQLite stays the primary sink and the

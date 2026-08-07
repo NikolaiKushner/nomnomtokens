@@ -38,6 +38,7 @@ const commands = computed<Command[]>(() => {
     { id: 'nav-limits', label: 'Limits', group: 'Go to', run: () => router.push('/limits') },
     { id: 'nav-import', label: 'Import CSV', group: 'Go to', run: () => router.push('/import') },
     { id: 'nav-export', label: 'Export', group: 'Go to', run: () => router.push('/export') },
+    { id: 'nav-alerts', label: 'Alerts', group: 'Go to', run: () => router.push('/alerts') },
   ]
 
   const ranges: Command[] = ([

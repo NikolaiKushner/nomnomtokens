@@ -6,6 +6,9 @@ useHead({ title: 'Overview — nomnomtokens' })
 const { data, pending, refresh } = useSummary()
 const { data: meta } = useMeta()
 const { frame } = useLive()
+const { data: alerts } = useFetch<{ hits: Array<{ id: string, message: string }> }>('/api/alerts', {
+  key: 'overview-alerts',
+})
 
 // The headline is the one number that must never be stale, so it prefers the
 // live frame and falls back to the fetched summary.
@@ -102,6 +105,21 @@ const isEmpty = computed(() => (meta.value?.bounds.events ?? 0) === 0)
         {{ data.totals.range.unpricedEvents }} events in this range use a model with no known price and are
         excluded from cost. Token counts still include them.
       </div>
+
+      <UiCard v-if="(alerts?.hits.length ?? 0) > 0">
+        <UiCardHeader>
+          <UiCardTitle class="text-destructive">Alerts</UiCardTitle>
+          <UiCardDescription>Thresholds crossed against the local store.</UiCardDescription>
+          <UiCardAction>
+            <UiButton to="/alerts" variant="ghost" size="sm">Configure</UiButton>
+          </UiCardAction>
+        </UiCardHeader>
+        <UiCardContent class="space-y-2">
+          <p v-for="hit in alerts!.hits" :key="hit.id" class="text-sm">
+            {{ hit.message }}
+          </p>
+        </UiCardContent>
+      </UiCard>
 
       <UiCard v-if="(data?.limits.length ?? 0) > 0">
         <UiCardHeader>

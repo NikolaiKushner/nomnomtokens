@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, BarChart3, Boxes, Clock, Download, FolderTree, Gauge, Monitor, Moon, Sun, Upload } from 'lucide-vue-next'
+import { Activity, BarChart3, Bell, Boxes, Clock, Download, FolderTree, Gauge, Monitor, Moon, Sun, Upload } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 
 const route = useRoute()
@@ -25,6 +25,7 @@ const NAV = [
   { to: '/limits', label: 'Limits', icon: Activity },
   { to: '/import', label: 'Import', icon: Upload },
   { to: '/export', label: 'Export', icon: Download },
+  { to: '/alerts', label: 'Alerts', icon: Bell },
 ]
 
 const isActive = (to: string) => (to === '/' ? route.path === '/' : route.path.startsWith(to))

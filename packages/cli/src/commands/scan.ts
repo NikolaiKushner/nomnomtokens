@@ -1,7 +1,7 @@
 import { detectAdapters } from '@nomnomtokens/adapters'
 import type { IngestRecord } from '@nomnomtokens/core'
 import { bucketStart } from '@nomnomtokens/core'
-import { loadPriceTable, openDb, Queries, Repo } from '@nomnomtokens/db'
+import { checkAlerts, loadAlertsConfig, loadPriceTable, openDb, Queries, Repo } from '@nomnomtokens/db'
 import { c, compactNumber, duration, usd } from '../format.js'
 
 export interface ScanOptions {
@@ -97,6 +97,14 @@ export async function scan(opts: ScanOptions = {}): Promise<void> {
     console.log(
       c.dim(`${all.events} events in ${path} — scanned in ${duration(Date.now() - started)}`),
     )
+
+    const { config: alertConfig } = loadAlertsConfig()
+    const { hits } = checkAlerts(queries, alertConfig)
+    if (hits.length > 0) {
+      console.log()
+      console.log(`${c.yellow('alerts')}  ${hits.length} threshold(s) crossed — nnt alerts check`)
+      for (const hit of hits) console.log(c.dim(`  ! ${hit.message}`))
+    }
   }
 
   if (opts.watch) {

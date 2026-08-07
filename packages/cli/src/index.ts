@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
+import { alertsCheck, alertsShow } from './commands/alerts.js'
 import { doctor } from './commands/doctor.js'
 import { exportCommand } from './commands/export.js'
 import { importCsvCommand } from './commands/import-csv.js'
@@ -157,6 +158,30 @@ prices
     await pricesRefresh(opts)
   })
 
+const alerts = program
+  .command('alerts')
+  .description('threshold alerts for limit windows and daily spend')
+
+alerts
+  .command('show', { isDefault: true })
+  .description('print alert thresholds (~/.nomnomtokens/alerts.json)')
+  .action(() => {
+    alertsShow()
+  })
+
+alerts
+  .command('check')
+  .description('evaluate thresholds; exit 2 if any are firing')
+  .option('--notify', 'desktop notification and/or configured webhook')
+  .option('--webhook <url>', 'POST hits to this URL (overrides config)')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (opts: { notify?: boolean, webhook?: string, quiet?: boolean }) => {
+    await alertsCheck({
+      ...opts,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
 /**
  * `npx nomnomtokens` is the advertised entry point, so an invocation with no
  * subcommand means "open the dashboard" rather than "print help at someone who
@@ -168,7 +193,7 @@ prices
  * name no command and aren't asking for help, insert `serve`.
  */
 const COMMANDS = new Set([
-  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'help',
+  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'alerts', 'help',
 ])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 

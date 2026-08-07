@@ -3,6 +3,7 @@ import { costOf, resolveModelKey } from './pricing.js'
 import { currentWindowSnapshots, forecastLimit, linearRegression, moodFor } from './forecast.js'
 import { bucketStart, cacheHitRate, costPerKLines, heatmap, timeSeries } from './aggregate.js'
 import { formatExportCsv, formatExportJson } from './export-format.js'
+import { evaluateAlerts, parseAlertsConfig } from './alerts.js'
 import { parsePricesFile, serializePricesFile } from './prices-file.js'
 import { scopeHash, scopeLabel } from './hash.js'
 import type { LimitSnapshot, SpendEvent } from './types.js'
@@ -230,5 +231,28 @@ describe('prices file', () => {
     }))
     expect(wrapped.source).toBe('test')
     expect(wrapped.models['claude-opus-4-6']?.output).toBe(25)
+  })
+})
+
+describe('alerts', () => {
+  it('fires limit and daily thresholds independently', () => {
+    const config = parseAlertsConfig({ limitPct: 80, dailyUsd: 10 })
+    const hits = evaluateAlerts(config, {
+      todayCostUsd: 12,
+      limits: [
+        { provider: 'claude-code', window: '5h', usedPct: 90 },
+        { provider: 'claude-code', window: '7d', usedPct: 40 },
+      ],
+    })
+    expect(hits.map(h => h.kind).sort()).toEqual(['daily', 'limit'])
+    expect(hits.find(h => h.kind === 'limit')?.window).toBe('5h')
+  })
+
+  it('treats null thresholds as off', () => {
+    const hits = evaluateAlerts(parseAlertsConfig({ limitPct: null, dailyUsd: null }), {
+      todayCostUsd: 999,
+      limits: [{ provider: 'x', window: '5h', usedPct: 99 }],
+    })
+    expect(hits).toHaveLength(0)
   })
 })
