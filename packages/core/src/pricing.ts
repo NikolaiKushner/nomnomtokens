@@ -50,7 +50,18 @@ export const PRICES: Record<string, ModelPrice> = {
   'claude-3-5-haiku': { input: 0.8, output: 4 },
   'claude-3-haiku': { input: 0.25, output: 1.25 },
 
-  // Cursor-routed third-party ids (public list prices; Composer itself is unpriced).
+  // Cursor / Codex-routed OpenAI ids (public list prices where known; Composer is unpriced).
+  // Dotted and dashed forms: resolveModelKey normalises `.` → `-`.
+  'gpt-5.6': { input: 1.75, output: 14 },
+  'gpt-5-6': { input: 1.75, output: 14 },
+  'gpt-5.6-terra': { input: 1.75, output: 14 },
+  'gpt-5-6-terra': { input: 1.75, output: 14 },
+  'gpt-5.6-luna': { input: 1.75, output: 14 },
+  'gpt-5-6-luna': { input: 1.75, output: 14 },
+  'gpt-5.5': { input: 1.25, output: 10 },
+  'gpt-5-5': { input: 1.25, output: 10 },
+  'gpt-5.4-mini': { input: 0.25, output: 2 },
+  'gpt-5-4-mini': { input: 0.25, output: 2 },
   'gpt-5.2': { input: 1.75, output: 14 },
   'gpt-5-2': { input: 1.75, output: 14 },
   'gpt-5.2-codex': { input: 1.75, output: 14 },

@@ -8,6 +8,14 @@ const filters = useFilters()
 
 const total = computed(() => (data.value?.rows ?? []).reduce((s, r) => s + r.costUsd, 0))
 const share = (cost: number) => (total.value > 0 ? (cost / total.value) * 100 : 0)
+
+/** Same folder name can come from different absolute paths (and providers). */
+function displayName(row: { label: string | null, scopeHash: string }): string {
+  const base = row.label?.trim() || row.scopeHash
+  const dupes = (data.value?.rows ?? []).filter(r => (r.label?.trim() || r.scopeHash) === base)
+  if (dupes.length <= 1) return base
+  return `${base} · ${row.scopeHash.slice(0, 6)}`
+}
 </script>
 
 <template>
@@ -15,11 +23,21 @@ const share = (cost: number) => (total.value > 0 ? (cost / total.value) * 100 : 
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Projects</h1>
       <p class="text-muted-foreground mt-1 text-sm">
-        What the agent cost per project. Click a row to filter every screen to it.
+        What the agent cost per project. Click a row to focus every screen on it
+        (including this table). Clear the chip above to see all again.
       </p>
     </div>
 
     <FilterBar />
+
+    <p class="text-muted-foreground text-xs leading-relaxed">
+      Each row is a distinct folder on disk, identified by a hash of its full path
+      (we never store the path itself). The name is only the last path segment, so
+      several rows can share a label like <span class="font-mono">rowkit</span> or
+      <span class="font-mono">app</span> when you have clones, worktrees, or similarly
+      named directories. The short suffix after · disambiguates them — these are not
+      sessions. Filtering applies to that one folder, not every row with the same name.
+    </p>
 
     <UiCard class="py-0">
       <UiTable container-class="rounded-xl">
@@ -59,7 +77,7 @@ const share = (cost: number) => (total.value > 0 ? (cost / total.value) * 100 : 
             @click="filters.toggleScope(row.scopeHash)"
           >
             <UiTableCell class="pl-4 font-medium">
-              {{ row.label ?? row.scopeHash }}
+              {{ displayName(row) }}
               <span v-if="!row.label" class="text-muted-foreground ml-1 font-mono text-xs">unlabelled</span>
             </UiTableCell>
             <UiTableCell numeric>{{ formatUsd(row.costUsd) }}</UiTableCell>

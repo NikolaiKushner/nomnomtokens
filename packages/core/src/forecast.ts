@@ -38,6 +38,22 @@ export interface LimitForecast {
 }
 
 /**
+ * Snapshots belonging to the current fill cycle (after the last reset).
+ *
+ * A reset makes usedPct fall off a cliff; charts and regressions that span that
+ * discontinuity draw a fake V and invent a nonsense burn rate.
+ */
+export function currentWindowSnapshots<T extends { usedPct: number, ts: number }>(
+  snapshots: T[],
+): T[] {
+  if (snapshots.length === 0) return []
+  const sorted = [...snapshots].sort((a, b) => a.ts - b.ts)
+  let start = sorted.length - 1
+  while (start > 0 && sorted[start - 1]!.usedPct <= sorted[start]!.usedPct) start -= 1
+  return sorted.slice(start)
+}
+
+/**
  * Project when a limit window fills.
  *
  * Snapshots are per (provider, window) and must be sorted by ts. We regress
@@ -48,13 +64,8 @@ export interface LimitForecast {
 export function forecastLimit(snapshots: LimitSnapshot[], now = Date.now()): LimitForecast | null {
   if (snapshots.length === 0) return null
 
-  const sorted = [...snapshots].sort((a, b) => a.ts - b.ts)
-  const last = sorted[sorted.length - 1]!
-
-  // walk back to the start of the current window (the last point where usage dropped)
-  let start = sorted.length - 1
-  while (start > 0 && sorted[start - 1]!.usedPct <= sorted[start]!.usedPct) start -= 1
-  const current = sorted.slice(start)
+  const current = currentWindowSnapshots(snapshots)
+  const last = current[current.length - 1]!
 
   const hours = (ts: number) => (ts - current[0]!.ts) / 3_600_000
   const fit = linearRegression(current.map(s => ({ x: hours(s.ts), y: s.usedPct })))

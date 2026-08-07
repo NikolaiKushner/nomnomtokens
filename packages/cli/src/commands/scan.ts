@@ -20,7 +20,7 @@ export async function scan(opts: ScanOptions = {}): Promise<void> {
   const adapters = await detectAdapters()
   if (adapters.length === 0) {
     console.error(c.yellow('No sources detected on this machine.'))
-    console.error(c.dim('Looks for ~/.claude/projects and Cursor state.vscdb. Run `nnt doctor`.'))
+    console.error(c.dim('Looks for ~/.claude/projects, Cursor state.vscdb, and ~/.codex/sessions. Run `nnt doctor`.'))
     process.exitCode = 1
     return
   }
