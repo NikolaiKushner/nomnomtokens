@@ -57,7 +57,9 @@ jobs:
       # better-sqlite3 is a native module that is useless unbuilt. Explicit
       # rather than relying on the allow-list resolving the same way in CI.
       - name: Build native dependencies
-        run: pnpm rebuild better-sqlite3
+        run: |
+          pnpm rebuild better-sqlite3
+          node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
 
       - run: pnpm -r typecheck
       - run: pnpm -r test

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
 import { doctor } from './commands/doctor.js'
 import { init } from './commands/init.js'
@@ -6,12 +9,32 @@ import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
 import { statusline } from './commands/statusline.js'
 
+/** Walk up from this file until we find the published root package.json. */
+function packageVersion(): string {
+  let dir = dirname(fileURLToPath(import.meta.url))
+  for (let i = 0; i < 8; i++) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+        name?: string
+        version?: string
+      }
+      if (pkg.name === 'nomnomtokens' && pkg.version) return pkg.version
+    } catch {
+      // keep walking
+    }
+    const parent = resolve(dir, '..')
+    if (parent === dir) break
+    dir = parent
+  }
+  return '0.0.0'
+}
+
 const program = new Command()
 
 program
   .name('nnt')
   .description('nom nom nom — your agent is eating tokens. The dashboard shows exactly how many.')
-  .version('0.1.0')
+  .version(packageVersion())
   .option('--db <path>', 'database file (default: ~/.nomnomtokens/data.db)')
 
 program

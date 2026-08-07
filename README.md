@@ -134,8 +134,9 @@ the core, the contract is wrong and that's a bug worth reporting.
 
 ## Roadmap
 
-Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), CSV import
-helpers, all six screens, limits with forecasting, live updates.
+Shipped: Claude Code adapter, Cursor adapter (local `state.vscdb`), all six
+screens, limits with forecasting, live updates. CSV helpers exist in
+`packages/adapters` but are not wired into `scan` / the UI yet.
 
 Cursor caveat: the IDE often stores zero token counts in local bubbles. We only
 emit events when numbers are present (exact `tokenCount`, or
@@ -143,9 +144,9 @@ emit events when numbers are present (exact `tokenCount`, or
 local counts will not appear until Cursor writes them — or until a future
 optional CSV enrich from the Cursor dashboard.
 
-Next: OTLP receiver (covers anything that exports OpenTelemetry), Codex
-adapter, export, alerts. Then cloud mode — a second sink for the same events,
-never a rewrite, and never in the critical path.
+Next: wire up CSV import, OTLP receiver, Codex adapter, export, alerts. Then
+cloud mode — a second sink for the same events, never a rewrite, and never in
+the critical path.
 
 ## License
 
