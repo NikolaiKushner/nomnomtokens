@@ -84,12 +84,15 @@ jobs:
           echo "tarball ok ($(wc -l < files.txt) files)"
 
       - name: Publish to npm
-        # Auth via npm Trusted Publisher (OIDC + id-token). Do not set
-        # NODE_AUTH_TOKEN — a missing/empty NPM_TOKEN writes a blank .npmrc
-        # entry and fails with ENEEDAUTH, blocking OIDC.
+        # Auth via npm Trusted Publisher (OIDC + id-token).
+        # setup-node with registry-url injects NODE_AUTH_TOKEN from secrets;
+        # a classic NPM_TOKEN (or an empty one) overrides OIDC and fails the
+        # PUT with 404/ENEEDAUTH. Clear it so provenance publish uses OIDC.
         # --ignore-scripts because pnpm build already ran; without it prepack
         # rebuilds the whole dashboard a second time.
-        run: npm publish --provenance --access public --ignore-scripts
+        run: |
+          unset NODE_AUTH_TOKEN
+          npm publish --provenance --access public --ignore-scripts
 
       - name: Summarise
         env:
