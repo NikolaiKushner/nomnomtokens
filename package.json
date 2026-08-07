@@ -1,6 +1,6 @@
 {
   "name": "nomnomtokens",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "nom nom nom — your AI coding agent is eating tokens. A local-first dashboard that shows exactly how many.",
   "keywords": [
     "claude-code",
