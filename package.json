@@ -23,6 +23,7 @@
     "commander": "^15.0.0"
   },
   "scripts": {
+    "start": "node scripts/start.mjs",
     "dev": "pnpm --filter @nomnomtokens/web dev",
     "build": "pnpm run build:web && pnpm run build:cli",
     "build:web": "pnpm --filter @nomnomtokens/web build && node scripts/bundle-dashboard.mjs",

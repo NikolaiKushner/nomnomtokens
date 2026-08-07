@@ -105,7 +105,8 @@ raw files, matching exactly on row count and all five token buckets. See
 
 ```sh
 pnpm install
-pnpm dev          # dashboard with live reload on :4269
+pnpm start        # build if needed, scan history, open the dashboard
+pnpm dev          # Nuxt live reload only (no scan) on :4269
 pnpm test         # unit tests
 pnpm build        # Nuxt build, staged to web/, plus the bundled CLI in dist/
 ```
