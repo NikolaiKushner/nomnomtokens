@@ -3,6 +3,14 @@ name: Release
 on:
   push:
     branches: [main]
+  # Re-publish an existing tag when GitHub release succeeded but npm did not
+  # (e.g. first run failed auth). Does not create a new GitHub release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to publish (e.g. v0.1.0)'
+        required: true
+        type: string
 
 # Publishing to npm cannot be undone or overwritten, so never let two runs race.
 concurrency:
@@ -13,6 +21,7 @@ jobs:
   # Accumulates merged commits into an open "chore(main): release X.Y.Z" PR.
   # Merging a normal PR does NOT publish; merging the release PR does.
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,20 +39,22 @@ jobs:
 
   publish:
     needs: release-please
-    if: needs.release-please.outputs.released == 'true'
+    if: |
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        (needs.release-please.result == 'success' && needs.release-please.outputs.released == 'true')
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Required for npm provenance: npm verifies the package was built by this
-      # workflow, from this commit, and shows a "Built and signed" badge.
+      # Required for npm Trusted Publisher / provenance (OIDC). No NPM_TOKEN.
       id-token: write
 
     steps:
       - uses: actions/checkout@v4
         with:
-          # The tag release-please just created, not whatever main has drifted
-          # to since — publish exactly the reviewed commit.
-          ref: ${{ needs.release-please.outputs.tag }}
+          # Publish the tag release-please just cut, or the one chosen manually.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag }}
 
       - uses: pnpm/action-setup@v4
 
@@ -73,17 +84,22 @@ jobs:
           echo "tarball ok ($(wc -l < files.txt) files)"
 
       - name: Publish to npm
+        # Auth via npm Trusted Publisher (OIDC + id-token). Do not set
+        # NODE_AUTH_TOKEN — a missing/empty NPM_TOKEN writes a blank .npmrc
+        # entry and fails with ENEEDAUTH, blocking OIDC.
         # --ignore-scripts because pnpm build already ran; without it prepack
         # rebuilds the whole dashboard a second time.
         run: npm publish --provenance --access public --ignore-scripts
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Summarise
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag }}
+          VERSION: ${{ needs.release-please.outputs.version }}
         run: |
+          ver="${VERSION:-${TAG#v}}"
           {
-            echo "### Published \`nomnomtokens@${{ needs.release-please.outputs.version }}\`"
+            echo "### Published \`nomnomtokens@${ver}\`"
             echo ""
             echo "- npm: https://www.npmjs.com/package/nomnomtokens"
-            echo "- try it: \`npx nomnomtokens@${{ needs.release-please.outputs.version }}\`"
+            echo "- try it: \`npx nomnomtokens@${ver}\`"
           } >> "$GITHUB_STEP_SUMMARY"
