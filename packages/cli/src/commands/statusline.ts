@@ -2,7 +2,7 @@ import type { StatuslinePayload } from '@nomnomtokens/adapters'
 import { parseStatusline } from '@nomnomtokens/adapters'
 import { moodFor } from '@nomnomtokens/core'
 import { openDb, Repo } from '@nomnomtokens/db'
-import { compactNumber, usd } from '../format.js'
+import { compactNumber, untilReset, usd } from '../format.js'
 
 /**
  * `nnt statusline` is both an ingest hook and a real status line.
@@ -22,6 +22,23 @@ const MOOD_FACE: Record<string, string> = {
   full: '(＾ｕ＾)',
   stuffed: '(>_<)',
   overstuffed: '(x_x)',
+}
+
+/**
+ * A limit window as one segment: `5h 73% ·1h47m`.
+ *
+ * The percentage says how much is gone, the countdown says how long until it
+ * comes back — one is not actionable without the other. The countdown is
+ * dropped rather than faked when the payload omits `resets_at`, which older
+ * Claude Code versions do.
+ */
+function limitSegment(label: string, usedPct: number, resetsAtSeconds?: number): string {
+  // The payload counts in unix seconds; everything downstream of here is ms.
+  const resetsAt = typeof resetsAtSeconds === 'number' && Number.isFinite(resetsAtSeconds)
+    ? resetsAtSeconds * 1000
+    : null
+  const left = untilReset(resetsAt)
+  return `${label} ${Math.round(usedPct)}%${left ? ` ·${left}` : ''}`
 }
 
 async function readStdin(): Promise<string> {
@@ -58,8 +75,8 @@ export async function statusline(opts: StatuslineOptions = {}): Promise<void> {
   parts.push(MOOD_FACE[moodFor(Math.max(fiveHour ?? 0, sevenDay ?? 0))] ?? '(^_^)')
   if (cost !== null) parts.push(usd(cost))
   if (ctx !== null) parts.push(`ctx ${Math.round(ctx)}%`)
-  if (fiveHour !== null) parts.push(`5h ${Math.round(fiveHour)}%`)
-  if (sevenDay !== null) parts.push(`7d ${Math.round(sevenDay)}%`)
+  if (fiveHour !== null) parts.push(limitSegment('5h', fiveHour, limits?.five_hour?.resets_at))
+  if (sevenDay !== null) parts.push(limitSegment('7d', sevenDay, limits?.seven_day?.resets_at))
 
   const lines = (payload.cost?.total_lines_added ?? 0) + (payload.cost?.total_lines_removed ?? 0)
   if (lines > 0) parts.push(`${compactNumber(lines)} lines`)

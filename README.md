@@ -54,8 +54,12 @@ live updates.
 The hook doubles as a real status line:
 
 ```
-(＾ｕ＾)  $4.20  ctx 37%  5h 73%  7d 41%  138 lines
+(＾ｕ＾)  $4.20  ctx 37%  5h 73% ·1h47m  7d 41% ·4d3h  138 lines
 ```
+
+The countdown after each window is the time left until it resets: the
+percentage tells you whether to slow down, the countdown tells you what slowing
+down would cost. It is omitted when Claude Code sends no `resets_at`.
 
 ## Commands
 
