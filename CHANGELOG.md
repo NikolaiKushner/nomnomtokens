@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.3.0...v0.4.0) (2026-08-10)
+
+
+### Features
+
+* show time until rate-limit reset in the statusline ([582c4dd](https://github.com/NikolaiKushner/nomnomtokens/commit/582c4dd3886a2f85e5336d76fb3f23cfd11e9869))
+
+
+### Documentation
+
+* land work on main directly, and note that commit messages now release ([fe7d05a](https://github.com/NikolaiKushner/nomnomtokens/commit/fe7d05a306425234cb107cbc404d8695318ab0c5))
+
 ## [0.3.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.2.0...v0.3.0) (2026-08-07)
 
 
