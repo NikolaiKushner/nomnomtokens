@@ -6,16 +6,18 @@ adapters ──→ ingest (dedup) ──→ SQLite ──→ Nitro API ──→
     └── watcher ───────────────────┘         SSE ───────────┘
 ```
 
-Everything runs on the user's machine. There is no network hop in the data path.
+Everything runs on the user's machine. There is no network hop in the data
+path. Opt-in outbound calls (`nnt otel`, price `--from`, alert webhooks) sit
+beside that path; they never run from `scan` or `serve` unless you pass a flag.
 
 ## Packages
 
 | Package | Contains | Depends on |
 |---|---|---|
-| `packages/core` | `SpendEvent` / `LimitSnapshot` types, pricing, aggregation, forecasting, scope hashing | nothing — isomorphic, no Node API |
+| `packages/core` | `SpendEvent` / `LimitSnapshot` types, pricing, aggregation, forecasting, audit, verdict, OTLP mapping, nnt archive, scope hashing | nothing — isomorphic, no Node API |
 | `packages/db` | Drizzle schema, connection, upsert repository, read queries | core, better-sqlite3 |
 | `packages/adapters` | `claude-code` (jsonl + statusline), `cursor` (state.vscdb), `codex` (rollout jsonl), `csv` | core |
-| `packages/cli` | `init`, `scan`, `serve`, `statusline`, `doctor` | all of the above |
+| `packages/cli` | `init`, `scan`, `serve`, `statusline`, `doctor`, `audit`, `verdict`, `export`/`import`, `otel` | all of the above |
 | `apps/web` | Nuxt 4 UI + Nitro API + SSE | all of the above |
 
 The dependency direction is strictly one way. `core` knows nothing about Claude

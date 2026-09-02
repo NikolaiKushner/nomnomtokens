@@ -13,8 +13,13 @@ const emit = defineEmits<{ close: [] }>()
 const props = defineProps<{ open: boolean }>()
 
 const router = useRouter()
+const route = useRoute()
 const filters = useFilters()
 const { scopes } = useScopes()
+
+function go(path: string) {
+  void router.push({ path, query: { ...route.query } })
+}
 
 const dialog = ref<HTMLDialogElement>()
 const query = ref('')
@@ -30,15 +35,16 @@ interface Command {
 
 const commands = computed<Command[]>(() => {
   const pages: Command[] = [
-    { id: 'nav-overview', label: 'Overview', group: 'Go to', run: () => router.push('/') },
-    { id: 'nav-timeline', label: 'Timeline', group: 'Go to', run: () => router.push('/timeline') },
-    { id: 'nav-scopes', label: 'Projects', group: 'Go to', run: () => router.push('/scopes') },
-    { id: 'nav-providers', label: 'Providers', group: 'Go to', run: () => router.push('/providers') },
-    { id: 'nav-sessions', label: 'Sessions', group: 'Go to', run: () => router.push('/sessions') },
-    { id: 'nav-limits', label: 'Limits', group: 'Go to', run: () => router.push('/limits') },
-    { id: 'nav-import', label: 'Import CSV', group: 'Go to', run: () => router.push('/import') },
-    { id: 'nav-export', label: 'Export', group: 'Go to', run: () => router.push('/export') },
-    { id: 'nav-alerts', label: 'Alerts', group: 'Go to', run: () => router.push('/alerts') },
+    { id: 'nav-overview', label: 'Overview', group: 'Go to', run: () => go('/') },
+    { id: 'nav-audit', label: 'Audit', group: 'Go to', run: () => go('/audit') },
+    { id: 'nav-timeline', label: 'Timeline', group: 'Go to', run: () => go('/timeline') },
+    { id: 'nav-scopes', label: 'Projects', group: 'Go to', run: () => go('/scopes') },
+    { id: 'nav-providers', label: 'Providers', group: 'Go to', run: () => go('/providers') },
+    { id: 'nav-sessions', label: 'Sessions', group: 'Go to', run: () => go('/sessions') },
+    { id: 'nav-limits', label: 'Limits', group: 'Go to', run: () => go('/limits') },
+    { id: 'nav-import', label: 'Import', group: 'Go to', run: () => go('/import') },
+    { id: 'nav-export', label: 'Export', group: 'Go to', run: () => go('/export') },
+    { id: 'nav-alerts', label: 'Alerts', group: 'Go to', run: () => go('/alerts') },
   ]
 
   const ranges: Command[] = ([

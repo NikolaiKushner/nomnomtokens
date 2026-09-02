@@ -70,6 +70,7 @@ export const useHeatmap = () =>
 export interface ScopeRow extends TotalsRow {
   scopeHash: string
   label: string | null
+  client: string | null
   lastSeen: number | null
   cacheHitRate: number | null
   previousCostUsd: number | null
@@ -89,6 +90,49 @@ export const useProviderStats = () =>
     }>
     models: Array<TotalsRow & { unitLabel: string | null, cacheHitRate: number | null }>
   }>('providers', '/api/stats/providers')
+
+export interface AuditReport {
+  range: { from: number, to: number }
+  totals: { costUsd: number, tokens: number, events: number }
+  cache: { hitRate: number | null, readTokens: number, freshInTokens: number }
+  sidechain: {
+    tagged: boolean
+    costUsd: number
+    tokens: number
+    shareOfCost: number | null
+  }
+  models: Array<{ unitLabel: string | null, costUsd: number, share: number }>
+  topSessions: Array<{
+    sessionId: string
+    label: string | null
+    costUsd: number
+    sidechainShare: number | null
+  }>
+  coldResumes: Array<{
+    sessionId: string
+    label: string | null
+    ts: number
+    gapMs: number
+    costUsd: number
+    cacheWriteTokens: number
+  }>
+  tips: string[]
+}
+
+export const useAudit = () => withFilters<AuditReport>('audit', '/api/stats/audit')
+
+export interface VerdictReport {
+  recommended: 'pro' | 'max5x' | 'max20x' | 'above-20x' | 'unknown'
+  weeklyBound: boolean
+  weeklyUsedPct: number | null
+  fiveHourUsedPct: number | null
+  weeklyCostUsd: number
+  two5xVs20x: { two5xWins: boolean, reason: string }
+  estimatesAsOf: string
+  caveats: string[]
+}
+
+export const useVerdict = () => useFetch<VerdictReport>('/api/stats/verdict', { key: 'verdict' })
 
 export interface SessionRow extends TotalsRow {
   sessionId: string
@@ -116,7 +160,14 @@ export const useLimits = () =>
 
 export interface Meta {
   bounds: { first: number | null, last: number | null, events: number }
-  scopes: Array<{ scopeHash: string, label: string, provider: string, lastSeen: number }>
+  scopes: Array<{
+    scopeHash: string
+    label: string
+    provider: string
+    lastSeen: number
+    client: string | null
+    labelLocked: boolean
+  }>
   providers: Array<{ provider: string, events: number }>
   models: Array<{ unitLabel: string | null, events: number }>
   limitWindows: Array<{ provider: string, window: string }>

@@ -13,6 +13,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   Sun,
   Upload,
   X,
@@ -43,6 +44,7 @@ interface NavItem {
 
 const BROWSE: NavItem[] = [
   { to: '/', label: 'Overview', icon: Gauge },
+  { to: '/audit', label: 'Audit', icon: Search },
   { to: '/timeline', label: 'Timeline', icon: BarChart3 },
   { to: '/scopes', label: 'Projects', icon: FolderTree },
   { to: '/providers', label: 'Providers', icon: Boxes },
@@ -62,6 +64,11 @@ const browseOpen = ref(true)
 const toolsOpen = ref(true)
 
 const isActive = (to: string) => (to === '/' ? route.path === '/' : route.path.startsWith(to))
+
+/** Keep range/project chips when hopping between screens. */
+function navTo(path: string) {
+  return { path, query: { ...route.query } }
+}
 
 const navIndex = (item: NavItem) => NAV.findIndex(n => n.to === item.to) + 1
 
@@ -144,7 +151,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 :content="`${item.label} · ${navIndex(item)}`"
               >
                 <NuxtLink
-                  :to="item.to"
+                  :to="navTo(item.to)"
                   :aria-label="item.label"
                   :class="cn(
                     'text-muted-foreground hover:text-foreground hover:bg-accent/50 flex size-9 items-center justify-center rounded-md transition-colors',
@@ -156,7 +163,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               </UiTooltip>
               <NuxtLink
                 v-else
-                :to="item.to"
+                :to="navTo(item.to)"
                 :class="cn(
                   'text-muted-foreground hover:text-foreground hover:bg-accent/50 group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                   isActive(item.to) && 'bg-accent text-accent-foreground',
@@ -196,7 +203,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 :content="`${item.label} · ${navIndex(item)}`"
               >
                 <NuxtLink
-                  :to="item.to"
+                  :to="navTo(item.to)"
                   :aria-label="item.label"
                   :class="cn(
                     'text-muted-foreground hover:text-foreground hover:bg-accent/50 flex size-9 items-center justify-center rounded-md transition-colors',
@@ -208,7 +215,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               </UiTooltip>
               <NuxtLink
                 v-else
-                :to="item.to"
+                :to="navTo(item.to)"
                 :class="cn(
                   'text-muted-foreground hover:text-foreground hover:bg-accent/50 group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                   isActive(item.to) && 'bg-accent text-accent-foreground',
@@ -312,7 +319,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 <NuxtLink
                   v-for="item in BROWSE"
                   :key="item.to"
-                  :to="item.to"
+                  :to="navTo(item.to)"
                   :class="cn(
                     'text-muted-foreground hover:text-foreground hover:bg-accent/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
                     isActive(item.to) && 'bg-accent text-accent-foreground',
@@ -331,7 +338,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 <NuxtLink
                   v-for="item in TOOLS"
                   :key="item.to"
-                  :to="item.to"
+                  :to="navTo(item.to)"
                   :class="cn(
                     'text-muted-foreground hover:text-foreground hover:bg-accent/50 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
                     isActive(item.to) && 'bg-accent text-accent-foreground',

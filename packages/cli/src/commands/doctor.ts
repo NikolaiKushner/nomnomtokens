@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -12,17 +12,92 @@ import { c, compactNumber, usd } from '../format.js'
 
 /** `nnt doctor` answers "why is the dashboard empty?" without reading source. */
 
+export const DEFAULT_CLEANUP_DAYS = 30
+
+export function readCleanupPeriodDays(settingsPath: string): number {
+  if (!existsSync(settingsPath)) return DEFAULT_CLEANUP_DAYS
+  try {
+    const parsed = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+      cleanupPeriodDays?: unknown
+    }
+    const n = parsed.cleanupPeriodDays
+    return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : DEFAULT_CLEANUP_DAYS
+  } catch {
+    return DEFAULT_CLEANUP_DAYS
+  }
+}
+
+export function listJsonlFiles(root: string): string[] {
+  if (!existsSync(root)) return []
+  const out: string[] = []
+  const stack = [root]
+  while (stack.length > 0) {
+    const dir = stack.pop()!
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) stack.push(path)
+      else if (entry.isFile() && entry.name.endsWith('.jsonl')) out.push(path)
+    }
+  }
+  return out
+}
+
+export function oldestMtime(paths: string[]): number | null {
+  let min: number | null = null
+  for (const path of paths) {
+    try {
+      const t = statSync(path).mtimeMs
+      if (min === null || t < min) min = t
+    } catch {
+      // skip unreadable
+    }
+  }
+  return min
+}
+
+/**
+ * Store already holds history that Claude Code will (or already did) delete
+ * from ~/.claude/projects. Null when there is nothing to warn about.
+ */
+export function transcriptRetentionWarning(opts: {
+  storeFirst: number | null
+  oldestJsonlMtime: number | null
+  cleanupDays: number
+  now?: number
+}): string | null {
+  if (opts.storeFirst === null) return null
+  const now = opts.now ?? Date.now()
+  const cutoff = now - opts.cleanupDays * 86_400_000
+  const storeOlderThanRetention = opts.storeFirst < cutoff
+  const transcriptsAlreadyGone = opts.oldestJsonlMtime !== null
+    && opts.oldestJsonlMtime > opts.storeFirst + 86_400_000
+  if (!storeOlderThanRetention && !transcriptsAlreadyGone) return null
+  return `store keeps history from ${new Date(opts.storeFirst).toISOString().slice(0, 10)}; transcripts will not (cleanupPeriodDays=${opts.cleanupDays})`
+}
+
 function check(ok: boolean, label: string, detail?: string): void {
   const mark = ok ? c.green('✔') : c.yellow('✗')
   console.log(`${mark} ${label}${detail ? c.dim(`  ${detail}`) : ''}`)
 }
 
-export async function doctor(opts: { db?: string } = {}): Promise<void> {
+export interface DoctorOptions {
+  db?: string
+  claudeSettings?: string
+  claudeProjects?: string
+}
+
+export async function doctor(opts: DoctorOptions = {}): Promise<void> {
   console.log(c.bold('nomnomtokens doctor'))
   console.log()
 
   console.log(c.bold('Sources'))
-  const projects = claudeProjectsDir()
+  const projects = opts.claudeProjects ?? claudeProjectsDir()
   check(existsSync(projects), 'Claude Code transcripts', projects)
 
   const cursorDb = cursorStateDbPath()
@@ -36,7 +111,7 @@ export async function doctor(opts: { db?: string } = {}): Promise<void> {
 
   console.log()
   console.log(c.bold('Status line'))
-  const settingsFile = join(homedir(), '.claude', 'settings.json')
+  const settingsFile = opts.claudeSettings ?? join(homedir(), '.claude', 'settings.json')
   let statusLineCommand: string | undefined
   if (existsSync(settingsFile)) {
     try {
@@ -78,6 +153,15 @@ export async function doctor(opts: { db?: string } = {}): Promise<void> {
     check(windows.length > 0, 'limit history', windows.length > 0
       ? windows.map(w => `${w.provider}/${w.window}`).join(', ')
       : 'none yet — the status line hook has not fired')
+
+    const cleanupDays = readCleanupPeriodDays(settingsFile)
+    const jsonl = listJsonlFiles(projects)
+    const warning = transcriptRetentionWarning({
+      storeFirst: bounds.first,
+      oldestJsonlMtime: oldestMtime(jsonl),
+      cleanupDays,
+    })
+    check(!warning, 'transcript retention', warning ?? `cleanupPeriodDays ${cleanupDays}`)
 
     sqlite.close()
   }

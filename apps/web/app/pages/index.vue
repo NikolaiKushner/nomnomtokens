@@ -4,6 +4,8 @@ import { TrendingUp } from 'lucide-vue-next'
 useHead({ title: 'Overview — nomnomtokens' })
 
 const { data, pending, refresh } = useSummary()
+const { data: audit, pending: auditPending, refresh: refreshAudit } = useAudit()
+const { data: verdict } = useVerdict()
 const { data: meta } = useMeta()
 const { frame } = useLive()
 const { data: alerts } = useFetch<{ hits: Array<{ id: string, message: string }> }>('/api/alerts', {
@@ -22,7 +24,10 @@ const today = computed(() => frame.value?.today ?? {
 // Refetch the slower aggregates when live data says something changed, but no
 // more than the SSE frame rate.
 watch(() => frame.value?.events, (next, prev) => {
-  if (prev !== undefined && next !== prev) void refresh()
+  if (prev !== undefined && next !== prev) {
+    void refresh()
+    void refreshAudit()
+  }
 })
 
 const sparkValues = computed(() => data.value?.sparkline.map(p => p.costUsd) ?? [])
@@ -68,6 +73,8 @@ const isEmpty = computed(() => (meta.value?.bounds.events ?? 0) === 0)
         <Mascot :mood="mood" :size="56" />
       </div>
 
+      <FilterBar />
+
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Today"
@@ -105,6 +112,26 @@ const isEmpty = computed(() => (meta.value?.bounds.events ?? 0) === 0)
         {{ data.totals.range.unpricedEvents }} events in this range use a model with no known price and are
         excluded from cost. Token counts still include them.
       </div>
+
+      <AuditCard :audit="audit ?? null" :pending="auditPending" />
+
+      <UiCard v-if="verdict && verdict.recommended !== 'unknown'">
+        <UiCardHeader>
+          <UiCardTitle>Verdict</UiCardTitle>
+          <UiCardDescription>
+            Weekly fill vs the name on the plan. Estimates as of {{ verdict.estimatesAsOf }}.
+          </UiCardDescription>
+        </UiCardHeader>
+        <UiCardContent class="space-y-3">
+          <p class="text-lg font-medium">
+            {{ verdict.recommended }}
+            <span class="text-muted-foreground ml-2 text-sm font-normal">
+              {{ verdict.weeklyBound ? 'weekly-bound' : '5h-bound' }}
+            </span>
+          </p>
+          <p class="text-muted-foreground text-sm">{{ verdict.two5xVs20x.reason }}</p>
+        </UiCardContent>
+      </UiCard>
 
       <UiCard v-if="(alerts?.hits.length ?? 0) > 0">
         <UiCardHeader>

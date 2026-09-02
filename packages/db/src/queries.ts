@@ -1,5 +1,6 @@
 import type BetterSqlite3 from 'better-sqlite3'
-import type { Granularity, LimitSnapshot } from '@nomnomtokens/core'
+import type { ColdResume, Granularity, LimitSnapshot, SpendEvent } from '@nomnomtokens/core'
+import { collectColdResumes } from '@nomnomtokens/core'
 
 /**
  * The read layer. Aggregation runs in SQL rather than in JS: the dashboard has
@@ -17,6 +18,8 @@ export interface Filters {
   sessionId?: string
   /** tokens don't add up with minutes — the UI always pins a kind before summing */
   kind?: string
+  /** local scopes.client tag (freelancer billing) */
+  client?: string
 }
 
 interface Where { sql: string, params: Record<string, unknown> }
@@ -56,6 +59,12 @@ function buildWhere(f: Filters, prefix = 'e'): Where {
       return `@scope${i}`
     })
     clauses.push(`${prefix}.scope_hash IN (${names.join(', ')})`)
+  }
+  if (f.client) {
+    clauses.push(
+      `${prefix}.scope_hash IN (SELECT scope_hash FROM scopes WHERE client = @client)`,
+    )
+    params.client = f.client
   }
 
   return { sql: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', params }
@@ -156,16 +165,26 @@ export class Queries {
     `).all(w.params) as Array<{ weekday: number, hour: number, costUsd: number, tokens: number, events: number }>
   }
 
-  byScope(f: Filters = {}): Array<TotalsRow & { scopeHash: string, label: string | null, lastSeen: number | null }> {
+  byScope(f: Filters = {}): Array<TotalsRow & {
+    scopeHash: string
+    label: string | null
+    client: string | null
+    lastSeen: number | null
+  }> {
     const w = buildWhere(f)
     return this.sqlite.prepare(`
-      SELECT e.scope_hash AS scopeHash, s.label AS label, s.last_seen AS lastSeen, ${TOTALS}
+      SELECT e.scope_hash AS scopeHash, s.label AS label, s.client AS client, s.last_seen AS lastSeen, ${TOTALS}
       FROM events e
       LEFT JOIN scopes s ON s.scope_hash = e.scope_hash
       ${w.sql}
       GROUP BY e.scope_hash
       ORDER BY costUsd DESC
-    `).all(w.params) as Array<TotalsRow & { scopeHash: string, label: string | null, lastSeen: number | null }>
+    `).all(w.params) as Array<TotalsRow & {
+      scopeHash: string
+      label: string | null
+      client: string | null
+      lastSeen: number | null
+    }>
   }
 
   byProvider(f: Filters = {}): Array<TotalsRow & { provider: string }> {
@@ -273,11 +292,132 @@ export class Queries {
       .all() as Array<{ provider: string, window: string }>
   }
 
-  scopeLabels(): Array<{ scopeHash: string, label: string, provider: string, lastSeen: number }> {
+  /** Latest snapshot per (provider, window) — statusline Codex headroom. */
+  latestLimits(): Array<LimitSnapshot> {
     return this.sqlite.prepare(`
-      SELECT scope_hash AS scopeHash, label, provider, last_seen AS lastSeen
+      SELECT l.ts, l.provider, l.window, l.used_pct AS usedPct, l.resets_at AS resetsAt
+      FROM limits l
+      INNER JOIN (
+        SELECT provider, window, MAX(ts) AS ts
+        FROM limits
+        GROUP BY provider, window
+      ) latest ON latest.provider = l.provider AND latest.window = l.window AND latest.ts = l.ts
+      ORDER BY l.provider, l.window
+    `).all() as LimitSnapshot[]
+  }
+
+  coldResumesFor(
+    sessions: Array<{ sessionId: string, label: string | null }>,
+    limit = 5,
+  ): ColdResume[] {
+    return collectColdResumes(
+      sessions.map(s => ({
+        sessionId: s.sessionId,
+        label: s.label,
+        turns: this.sessionEvents(s.sessionId),
+      })),
+      limit,
+    )
+  }
+
+  scopeLabels(): Array<{
+    scopeHash: string
+    label: string
+    provider: string
+    lastSeen: number
+    client: string | null
+    labelLocked: boolean
+  }> {
+    return this.sqlite.prepare(`
+      SELECT scope_hash AS scopeHash, label, provider, last_seen AS lastSeen,
+             client, label_locked AS labelLocked
       FROM scopes ORDER BY last_seen DESC
-    `).all() as Array<{ scopeHash: string, label: string, provider: string, lastSeen: number }>
+    `).all().map((row) => {
+      const r = row as {
+        scopeHash: string
+        label: string
+        provider: string
+        lastSeen: number
+        client: string | null
+        labelLocked: number
+      }
+      return { ...r, labelLocked: r.labelLocked === 1 }
+    })
+  }
+
+  /**
+   * Spend tagged as a Claude Code sidechain (subagent) turn.
+   *
+   * `taggedEvents` counts rows that have any `meta.sidechain` key — parents omit
+   * it entirely, so zero tagged events means "this corpus has no sidechain
+   * signal" (Cursor/Codex), not "0% subagents".
+   */
+  sidechainTotals(f: Filters = {}): TotalsRow & { taggedEvents: number } {
+    const w = buildWhere(f)
+    const sidechainClause = `json_extract(e.meta_json, '$.sidechain') = 1`
+    const where = w.sql
+      ? `${w.sql} AND ${sidechainClause}`
+      : `WHERE ${sidechainClause}`
+    const totals = this.sqlite
+      .prepare(`SELECT ${TOTALS} FROM events e ${where}`)
+      .get(w.params) as TotalsRow
+    const tagged = this.sqlite.prepare(`
+      SELECT COUNT(*) AS n
+      FROM events e ${w.sql}${w.sql ? ' AND' : 'WHERE'}
+        json_extract(e.meta_json, '$.sidechain') IS NOT NULL
+    `).get(w.params) as { n: number }
+    return { ...totals, taggedEvents: tagged.n }
+  }
+
+  /**
+   * Top sessions by cost, with the sidechain cost share when any turns are tagged.
+   * Used by the audit report — not a general-purpose sessions list.
+   */
+  sessionsAudit(f: Filters = {}, limit = 5): Array<{
+    sessionId: string
+    scopeHash: string
+    label: string | null
+    costUsd: number
+    tokens: number
+    sidechainCostUsd: number
+    sidechainTagged: number
+  }> {
+    const w = buildWhere(f)
+    const params = { ...w.params, limit }
+    const rows = this.sqlite.prepare(`
+      SELECT
+        e.session_id AS sessionId,
+        MIN(e.scope_hash) AS scopeHash,
+        COALESCE(SUM(e.cost_usd), 0) AS costUsd,
+        COALESCE(SUM(e.qty_total), 0) AS tokens,
+        COALESCE(SUM(
+          CASE WHEN json_extract(e.meta_json, '$.sidechain') = 1
+            THEN e.cost_usd ELSE 0 END
+        ), 0) AS sidechainCostUsd,
+        SUM(
+          CASE WHEN json_extract(e.meta_json, '$.sidechain') IS NOT NULL
+            THEN 1 ELSE 0 END
+        ) AS sidechainTagged
+      FROM events e
+      ${w.sql}${w.sql ? ' AND' : 'WHERE'} e.session_id IS NOT NULL
+      GROUP BY e.session_id
+      ORDER BY costUsd DESC
+      LIMIT @limit
+    `).all(params) as Array<{
+      sessionId: string
+      scopeHash: string
+      costUsd: number
+      tokens: number
+      sidechainCostUsd: number
+      sidechainTagged: number
+    }>
+    return rows.map((r) => {
+      const scope = this.sqlite
+        .prepare('SELECT label FROM scopes WHERE scope_hash = ?')
+        .pluck()
+        .get(r.scopeHash) as string | undefined
+      return { ...r, label: scope ?? null }
+    })
   }
 
   /**
@@ -321,6 +461,7 @@ export class Queries {
         e.session_id AS sessionId,
         e.scope_hash AS scopeHash,
         s.label AS project,
+        s.client AS client,
         e.unit_label AS model,
         e.cost_usd AS costUsd,
         e.qty_total AS tokens,
@@ -340,6 +481,7 @@ export class Queries {
         sessionId: string | null
         scopeHash: string
         project: string | null
+        client: string | null
         model: string | null
         costUsd: number | null
         tokens: number
@@ -355,6 +497,7 @@ export class Queries {
         sessionId: r.sessionId,
         scopeHash: r.scopeHash,
         project: r.project,
+        client: r.client,
         model: r.model,
         costUsd: r.costUsd,
         tokens: r.tokens,
@@ -363,6 +506,40 @@ export class Queries {
         qtyCacheCreate: qty.cacheCreate ?? 0,
         qtyCacheCreate1h: qty.cacheCreate1h ?? 0,
         qtyCacheRead: qty.cacheRead ?? 0,
+        meta: JSON.parse(r.metaJson) as Record<string, number>,
+      }
+    })
+  }
+
+  exportSpendEvents(limit = 100_000): SpendEvent[] {
+    return this.sqlite.prepare(`
+      SELECT id, ts, provider, kind, session_id AS sessionId, scope_hash AS scopeHash,
+             unit_label AS unitLabel, qty_json AS qtyJson, cost_usd AS costUsd,
+             meta_json AS metaJson
+      FROM events ORDER BY ts ASC LIMIT ?
+    `).all(limit).map((row) => {
+      const r = row as {
+        id: string
+        ts: number
+        provider: string
+        kind: string
+        sessionId: string | null
+        scopeHash: string
+        unitLabel: string | null
+        qtyJson: string
+        costUsd: number | null
+        metaJson: string
+      }
+      return {
+        id: r.id,
+        ts: r.ts,
+        provider: r.provider,
+        kind: r.kind,
+        sessionId: r.sessionId,
+        scopeHash: r.scopeHash,
+        unitLabel: r.unitLabel,
+        qty: JSON.parse(r.qtyJson) as Record<string, number>,
+        costUsd: r.costUsd,
         meta: JSON.parse(r.metaJson) as Record<string, number>,
       }
     })
@@ -377,6 +554,7 @@ export interface ExportEventRow {
   sessionId: string | null
   scopeHash: string
   project: string | null
+  client: string | null
   model: string | null
   costUsd: number | null
   tokens: number

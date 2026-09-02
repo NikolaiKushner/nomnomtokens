@@ -41,6 +41,7 @@ export function readFilters(event: H3Event): Filters & { range: RangeKey } {
     provider: list(q.provider),
     scopeHash: list(q.scope),
     sessionId: typeof q.session === 'string' ? q.session : undefined,
+    client: typeof q.client === 'string' && q.client.trim() ? q.client.trim() : undefined,
     // The UI always pins a kind before summing: tokens and minutes are not
     // addable, and cost is the only axis on which everything compares.
     kind: typeof q.kind === 'string' ? q.kind : 'tokens',

@@ -196,6 +196,7 @@ describe('export format', () => {
     sessionId: 's1',
     scopeHash: 'abcd',
     project: 'demo,project',
+    client: null,
     model: 'claude-sonnet-4-5',
     costUsd: 1.5,
     tokens: 1000,

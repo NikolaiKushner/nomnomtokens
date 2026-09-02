@@ -1,8 +1,7 @@
 import type { StatuslinePayload } from '@nomnomtokens/adapters'
 import { parseStatusline } from '@nomnomtokens/adapters'
-import { moodFor } from '@nomnomtokens/core'
-import { openDb, Repo } from '@nomnomtokens/db'
-import { compactNumber, untilReset, usd } from '../format.js'
+import { openDb, Queries, Repo } from '@nomnomtokens/db'
+import { buildStatuslineParts } from '../statusline-render.js'
 
 /**
  * `nnt statusline` is both an ingest hook and a real status line.
@@ -16,30 +15,7 @@ import { compactNumber, untilReset, usd } from '../format.js'
  * error in the user's status bar on every render.
  */
 
-const MOOD_FACE: Record<string, string> = {
-  hungry: '(・_・)',
-  content: '(^_^)',
-  full: '(＾ｕ＾)',
-  stuffed: '(>_<)',
-  overstuffed: '(x_x)',
-}
-
-/**
- * A limit window as one segment: `5h 73% ·1h47m`.
- *
- * The percentage says how much is gone, the countdown says how long until it
- * comes back — one is not actionable without the other. The countdown is
- * dropped rather than faked when the payload omits `resets_at`, which older
- * Claude Code versions do.
- */
-function limitSegment(label: string, usedPct: number, resetsAtSeconds?: number): string {
-  // The payload counts in unix seconds; everything downstream of here is ms.
-  const resetsAt = typeof resetsAtSeconds === 'number' && Number.isFinite(resetsAtSeconds)
-    ? resetsAtSeconds * 1000
-    : null
-  const left = untilReset(resetsAt)
-  return `${label} ${Math.round(usedPct)}%${left ? ` ·${left}` : ''}`
-}
+const CODEX_FRESH_MS = 24 * 3_600_000
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = []
@@ -51,6 +27,21 @@ export interface StatuslineOptions {
   db?: string
   /** skip the write and only render — useful for testing the output format */
   dryRun?: boolean
+}
+
+function readCodexWeekly(db?: string): number | null {
+  try {
+    const { sqlite } = openDb(db)
+    const q = new Queries(sqlite)
+    const latest = q.latestLimits()
+    sqlite.close()
+    const row = latest.find(l => l.provider === 'codex' && l.window === '7d')
+    if (!row) return null
+    if (Date.now() - row.ts > CODEX_FRESH_MS) return null
+    return row.usedPct
+  } catch {
+    return null
+  }
 }
 
 export async function statusline(opts: StatuslineOptions = {}): Promise<void> {
@@ -68,18 +59,19 @@ export async function statusline(opts: StatuslineOptions = {}): Promise<void> {
   const sevenDay = limits?.seven_day?.used_percentage ?? null
   const cost = payload.cost?.total_cost_usd ?? null
   const ctx = payload.context_window?.used_percentage ?? null
-
-  // Render first, persist second: the user's status bar should not wait on a
-  // database write, and a locked DB must never blank the bar.
-  const parts: string[] = []
-  parts.push(MOOD_FACE[moodFor(Math.max(fiveHour ?? 0, sevenDay ?? 0))] ?? '(^_^)')
-  if (cost !== null) parts.push(usd(cost))
-  if (ctx !== null) parts.push(`ctx ${Math.round(ctx)}%`)
-  if (fiveHour !== null) parts.push(limitSegment('5h', fiveHour, limits?.five_hour?.resets_at))
-  if (sevenDay !== null) parts.push(limitSegment('7d', sevenDay, limits?.seven_day?.resets_at))
-
   const lines = (payload.cost?.total_lines_added ?? 0) + (payload.cost?.total_lines_removed ?? 0)
-  if (lines > 0) parts.push(`${compactNumber(lines)} lines`)
+  const codexSevenDay = readCodexWeekly(opts.db)
+
+  const parts = buildStatuslineParts({
+    fiveHour,
+    sevenDay,
+    fiveHourResetsAt: limits?.five_hour?.resets_at,
+    sevenDayResetsAt: limits?.seven_day?.resets_at,
+    cost,
+    ctx,
+    lines,
+    codexSevenDay,
+  })
 
   process.stdout.write(`${parts.join('  ')}\n`)
 

@@ -3,10 +3,10 @@
 ## The short version
 
 nomnomtokens reads your agent's local logs, writes numbers to a SQLite file in
-your home directory, and serves a dashboard on localhost. It makes no outbound
-network requests. There is no account, no telemetry, no crash reporting, no
-analytics, and no CDN — the fonts, styles and scripts are all served by the
-local process.
+your home directory, and serves a dashboard on localhost. By default it makes
+no outbound network requests. There is no account, no telemetry, no crash
+reporting, no analytics, and no CDN — the fonts, styles and scripts are all
+served by the local process. The only network is opt-in and listed below.
 
 Uninstalling is `rm -rf ~/.nomnomtokens`.
 
@@ -56,9 +56,10 @@ A "scope" is whatever the provider considers a project. Events store
 
 The human-readable label you see in the UI (`nomnomtokens`, `client-x`) lives in
 a separate local `scopes` table, is derived from the last path segment, and is
-never attached to an event. In phase 2, when events sync to a server, the label
-table stays on your machine: the cloud sees `80d4d49179768aed`, not
-`/Users/you/dev/acme-secret-project`.
+never attached to an event. An optional `client` tag on that same row is also
+local-only — it is for invoices, not for the event contract. In phase 2, when
+events sync to a server, the label table stays on your machine: the cloud sees
+`80d4d49179768aed`, not `/Users/you/dev/acme-secret-project`.
 
 The hash is one-way but not unguessable — an attacker who already knows a
 candidate path can confirm it. It defends against disclosure, not against
@@ -124,17 +125,31 @@ Message content, tool inputs/outputs, diffs, git metadata, and auth files under
 
 ## Network
 
-Phase 1 makes no outbound requests of any kind. The dashboard binds to
-localhost.
+Phase 1 makes no outbound requests unless you opt in. The dashboard binds to
+localhost. Scan and serve never open a socket to the internet.
 
-Price-table refresh is local by default: `nnt prices refresh` writes the bundled
-rates to `~/.nomnomtokens/prices.json` with no network. The only outbound call
-is opt-in — `nnt prices refresh --from <https://…>` — and it sends nothing but
-the GET itself (no account, no telemetry, no path or prompt data).
+Three opt-in channels, all off by default:
 
-Alert webhooks are also opt-in (`alerts.json` `webhook` or
-`nnt alerts check --webhook`). The POST body contains only threshold hits
-(percentages and dollar amounts) — never prompts, paths, or diffs.
+1. **Price-table refresh.** `nnt prices refresh` writes the bundled rates to
+   `~/.nomnomtokens/prices.json` with no network. `nnt prices refresh --from
+   <https://…>` is a GET of that URL only (no account, no telemetry, no path
+   or prompt data).
+2. **Alert webhooks.** `alerts.json` `webhook` or `nnt alerts check --webhook`.
+   The POST body contains only threshold hits (percentages and dollar amounts)
+   — never prompts, paths, or diffs.
+3. **OTLP export.** `nnt otel --endpoint <url>` POSTs OTLP/HTTP JSON metrics
+   (`nnt.cost_usd`, `nnt.tokens`) with attributes `provider`, `unit_label`,
+   `scope_hash`. Project labels are omitted unless you pass `--include-labels`.
+   Scan and serve never call this; there is no hook, no config auto-export.
+
+## nnt archives
+
+`nnt export --format nnt` writes events, limit snapshots, and the local
+`scopes` table (labels and client tags) to a JSON file. `scan_state` is not
+included — paths on another machine are different. The file is the whole local
+history you already have in SQLite, including those labels. Treat it like the
+database: do not post it, do not commit it. Re-import uses the same upsert as
+ingest, so duplicates do not double-count.
 
 ## Phase 2, when it arrives
 

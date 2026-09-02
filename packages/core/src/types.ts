@@ -41,7 +41,15 @@ export interface LimitSnapshot {
 export type IngestRecord =
   | { type: 'event', event: SpendEvent }
   | { type: 'limit', limit: LimitSnapshot }
-  | { type: 'scope', scopeHash: string, label: string, provider: string }
+  | {
+    type: 'scope'
+    scopeHash: string
+    label: string
+    provider: string
+    lastSeen?: number
+    client?: string | null
+    labelLocked?: boolean
+  }
 
 /** Where an incremental scan left off, per source file. */
 export interface ScanCursor {

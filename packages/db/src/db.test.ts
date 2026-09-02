@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SpendEvent } from '@nomnomtokens/core'
+import { COLD_GAP_MS, formatNntArchive, parseNntArchive } from '@nomnomtokens/core'
 import { openDb } from './client.js'
 import { Queries } from './queries.js'
 import { Repo } from './repo.js'
@@ -137,6 +138,67 @@ describe('queries', () => {
     expect(state.get('/a.jsonl')).toEqual({ sourcePath: '/a.jsonl', mtime: 1, size: 2, offset: 3 })
   })
 
+  it('aggregates sidechain spend separately from parent turns', () => {
+    const { repo, q } = fresh()
+    repo.ingest([
+      { type: 'event', event: event({ id: 'p1', costUsd: 2, meta: { linesAdded: 1 } }) },
+      { type: 'event', event: event({ id: 'p2', costUsd: 3, meta: { linesAdded: 1 } }) },
+      {
+        type: 'event',
+        event: event({
+          id: 's1',
+          costUsd: 5,
+          meta: { sidechain: 1, linesAdded: 1 },
+          qty: { in: 100, out: 50, cacheCreate: 0, cacheCreate1h: 0, cacheRead: 0 },
+        }),
+      },
+    ])
+    const sc = q.sidechainTotals({ kind: 'tokens' })
+    expect(sc.taggedEvents).toBe(1)
+    expect(sc.costUsd).toBe(5)
+    expect(sc.events).toBe(1)
+    expect(q.totals({ kind: 'tokens' }).costUsd).toBe(10)
+  })
+
+  it('reports zero taggedEvents when no sidechain meta is present', () => {
+    const { repo, q } = fresh()
+    repo.ingest([
+      { type: 'event', event: event({ id: 'a', provider: 'codex', costUsd: 1 }) },
+      { type: 'event', event: event({ id: 'b', provider: 'cursor', costUsd: 2 }) },
+    ])
+    const sc = q.sidechainTotals()
+    expect(sc.taggedEvents).toBe(0)
+    expect(sc.costUsd).toBe(0)
+    expect(sc.events).toBe(0)
+  })
+
+  it('ranks sessions for audit with sidechain cost share', () => {
+    const { repo, q } = fresh()
+    repo.ingest([
+      { type: 'scope', scopeHash: 'aaaa', label: 'hot-repo', provider: 'claude-code' },
+      { type: 'event', event: event({ id: 'a', sessionId: 'sess-a', costUsd: 10, meta: {} }) },
+      {
+        type: 'event',
+        event: event({
+          id: 'b',
+          sessionId: 'sess-a',
+          costUsd: 10,
+          meta: { sidechain: 1 },
+        }),
+      },
+      { type: 'event', event: event({ id: 'c', sessionId: 'sess-b', costUsd: 1, meta: {} }) },
+    ])
+    const rows = q.sessionsAudit({ kind: 'tokens' }, 5)
+    expect(rows[0]).toMatchObject({
+      sessionId: 'sess-a',
+      label: 'hot-repo',
+      costUsd: 20,
+      sidechainCostUsd: 10,
+      sidechainTagged: 1,
+    })
+    expect(rows[1]?.sessionId).toBe('sess-b')
+  })
+
   it('repairs Cursor Auto placeholder labels into null', () => {
     const { repo, q } = fresh()
     repo.ingest([
@@ -150,5 +212,89 @@ describe('queries', () => {
     expect(labels).toContain('grok-4.5')
     expect(labels).not.toContain('default')
     expect(labels).not.toContain('default,default,default,default')
+  })
+
+  it('keeps a locked scope label across ingest', () => {
+    const { repo, q } = fresh()
+    repo.ingest([{ type: 'scope', scopeHash: 'aaaa', label: 'folder-name', provider: 'claude-code' }])
+    expect(repo.updateScope('aaaa', { label: 'acme', client: 'Acme Inc' })).toBe(true)
+    repo.ingest([{ type: 'scope', scopeHash: 'aaaa', label: 'folder-name', provider: 'claude-code' }])
+    const row = q.scopeLabels().find(s => s.scopeHash === 'aaaa')
+    expect(row).toMatchObject({ label: 'acme', client: 'Acme Inc', labelLocked: true })
+  })
+
+  it('surfaces a cold resume from sessionEvents', () => {
+    const { repo, q } = fresh()
+    const t0 = Date.parse('2026-08-01T10:00:00Z')
+    repo.ingest([
+      { type: 'scope', scopeHash: 'aaaa', label: 'hot-repo', provider: 'claude-code' },
+      {
+        type: 'event',
+        event: event({
+          id: 'c1',
+          ts: t0,
+          qty: { in: 100, out: 20, cacheCreate: 3_000, cacheCreate1h: 0, cacheRead: 0 },
+          costUsd: 0.2,
+        }),
+      },
+      {
+        type: 'event',
+        event: event({
+          id: 'c2',
+          ts: t0 + COLD_GAP_MS + 60_000,
+          qty: { in: 100, out: 20, cacheCreate: 80_000, cacheCreate1h: 0, cacheRead: 0 },
+          costUsd: 4.2,
+        }),
+      },
+    ])
+    const hits = q.coldResumesFor([{ sessionId: 's1', label: 'hot-repo' }])
+    expect(hits).toHaveLength(1)
+    expect(hits[0]?.costUsd).toBe(4.2)
+  })
+
+  it('round-trips an nnt archive without doubling events', () => {
+    const { repo, q } = fresh()
+    const base = Date.parse('2026-03-04T12:00:00')
+    repo.ingest([
+      { type: 'scope', scopeHash: 'aaaa', label: 'demo', provider: 'claude-code' },
+      { type: 'event', event: event({ ts: base }) },
+      {
+        type: 'limit',
+        limit: { ts: base, provider: 'claude-code', window: '7d', usedPct: 40, resetsAt: base + 1 },
+      },
+    ])
+    const json = formatNntArchive({
+      version: 1,
+      events: q.exportSpendEvents(),
+      limits: q.limitSnapshots(),
+      scopes: q.scopeLabels().map(s => ({
+        scopeHash: s.scopeHash,
+        label: s.label,
+        provider: s.provider,
+        lastSeen: s.lastSeen,
+        client: s.client,
+        labelLocked: s.labelLocked,
+      })),
+    })
+    const { repo: repo2, q: q2 } = fresh()
+    repo2.ingest(parseNntArchive(json))
+    expect(q2.bounds().events).toBe(1)
+    expect(q2.totals().costUsd).toBe(q.totals().costUsd)
+    expect(q2.limitWindows()).toEqual([{ provider: 'claude-code', window: '7d' }])
+    repo2.ingest(parseNntArchive(json))
+    expect(q2.bounds().events).toBe(1)
+  })
+
+  it('returns the latest limit per provider/window', () => {
+    const { repo, q } = fresh()
+    const t = Date.now()
+    repo.ingest([
+      { type: 'limit', limit: { ts: t, provider: 'codex', window: '7d', usedPct: 10, resetsAt: null } },
+      { type: 'limit', limit: { ts: t + 1, provider: 'codex', window: '7d', usedPct: 12, resetsAt: null } },
+      { type: 'limit', limit: { ts: t, provider: 'claude-code', window: '7d', usedPct: 80, resetsAt: null } },
+    ])
+    const latest = q.latestLimits()
+    expect(latest.find(l => l.provider === 'codex' && l.window === '7d')?.usedPct).toBe(12)
+    expect(latest.find(l => l.provider === 'claude-code')?.usedPct).toBe(80)
   })
 })

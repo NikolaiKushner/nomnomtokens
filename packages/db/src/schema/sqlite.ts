@@ -34,6 +34,10 @@ export const scopes = sqliteTable('scopes', {
   label: text('label').notNull(),
   provider: text('provider').notNull(),
   lastSeen: integer('last_seen').notNull(),
+  /** freelancer/client tag — local only, never attached to events */
+  client: text('client'),
+  /** 1 when the user renamed the label; ingest must not clobber it */
+  labelLocked: integer('label_locked').notNull().default(0),
 })
 
 export const limits = sqliteTable('limits', {

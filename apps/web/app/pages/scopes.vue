@@ -9,6 +9,7 @@ const filters = useFilters()
 interface ProjectGroup {
   key: string
   label: string
+  client: string | null
   rows: ScopeRow[]
   costUsd: number
   tokens: number
@@ -38,9 +39,11 @@ const groups = computed<ProjectGroup[]>(() => {
     const qtyCacheRead = rows.reduce((s, r) => s + r.qtyCacheRead, 0)
     const cacheDenom = qtyIn + qtyCacheRead
     const trends = rows.map(r => r.trendPct).filter((t): t is number => t !== null)
+    const clients = [...new Set(rows.map(r => r.client).filter((c): c is string => Boolean(c)))]
     out.push({
       key,
       label: key,
+      client: clients.length === 1 ? clients[0]! : null,
       rows: rows.sort((a, b) => b.costUsd - a.costUsd),
       costUsd,
       tokens,
@@ -78,6 +81,31 @@ function onGroupClick(group: ProjectGroup) {
 function pathLabel(hash: string): string {
   return hash.slice(0, 6)
 }
+
+const drafts = reactive<Record<string, string>>({})
+const saving = ref<string | null>(null)
+
+function clientDraft(row: ScopeRow): string {
+  return drafts[row.scopeHash] ?? row.client ?? ''
+}
+
+async function saveClient(row: ScopeRow) {
+  const client = clientDraft(row).trim()
+  const prev = (row.client ?? '').trim()
+  if (client === prev) return
+  saving.value = row.scopeHash
+  try {
+    const client = clientDraft(row).trim()
+    await $fetch(`/api/scopes/${encodeURIComponent(row.scopeHash)}`, {
+      method: 'PATCH',
+      body: { client: client || null },
+    })
+    await refreshNuxtData()
+  } finally {
+    saving.value = null
+  }
+}
+
 </script>
 
 <template>
@@ -86,7 +114,7 @@ function pathLabel(hash: string): string {
       <h1 class="text-2xl font-semibold tracking-tight">Projects</h1>
       <p class="text-muted-foreground mt-1 text-sm">
         Cost by folder name. Click a name to focus every screen on all paths that
-        share it; expand a row to pick one clone or worktree.
+        share it; expand a row to pick one clone or worktree, or tag a client for invoices.
       </p>
     </div>
 
@@ -103,6 +131,7 @@ function pathLabel(hash: string): string {
         <UiTableHeader>
           <UiTableRow>
             <UiTableHead class="pl-4">Project</UiTableHead>
+            <UiTableHead>Client</UiTableHead>
             <UiTableHead numeric>Cost</UiTableHead>
             <UiTableHead numeric>Share</UiTableHead>
             <UiTableHead numeric>Trend</UiTableHead>
@@ -113,13 +142,13 @@ function pathLabel(hash: string): string {
         </UiTableHeader>
         <UiTableBody>
           <UiTableRow v-if="pending && !data">
-            <UiTableCell colspan="7" class="p-4">
+            <UiTableCell colspan="8" class="p-4">
               <UiSkeleton class="h-24 w-full" />
             </UiTableCell>
           </UiTableRow>
 
           <UiTableRow v-else-if="groups.length === 0">
-            <UiTableCell colspan="7">
+            <UiTableCell colspan="8">
               <EmptyState
                 title="No projects in this range"
                 description="Widen the range, or run a scan to pick up more history."
@@ -138,7 +167,6 @@ function pathLabel(hash: string): string {
               <UiTableCell class="pl-4 font-medium">
                 <span class="inline-flex items-center gap-1.5">
                   <button
-                    v-if="group.rows.length > 1"
                     type="button"
                     class="text-muted-foreground hover:text-foreground -ml-1 inline-flex size-6 items-center justify-center rounded-md"
                     :aria-expanded="expanded.has(group.key)"
@@ -148,7 +176,6 @@ function pathLabel(hash: string): string {
                     <ChevronDown v-if="expanded.has(group.key)" class="size-3.5" />
                     <ChevronRight v-else class="size-3.5" />
                   </button>
-                  <span v-else class="inline-block size-6" />
                   {{ group.label }}
                   <span
                     v-if="group.rows.length > 1"
@@ -157,6 +184,9 @@ function pathLabel(hash: string): string {
                     · {{ group.rows.length }} paths
                   </span>
                 </span>
+              </UiTableCell>
+              <UiTableCell class="text-muted-foreground text-sm">
+                {{ group.client ?? '—' }}
               </UiTableCell>
               <UiTableCell numeric>{{ formatUsd(group.costUsd) }}</UiTableCell>
               <UiTableCell numeric class="w-32">
@@ -194,6 +224,17 @@ function pathLabel(hash: string): string {
               <UiTableCell class="text-muted-foreground pl-12 font-mono text-xs">
                 {{ pathLabel(row.scopeHash) }}
                 <span v-if="!row.label" class="ml-1">unlabelled</span>
+              </UiTableCell>
+              <UiTableCell @click.stop>
+                <input
+                  class="border-input bg-background focus-visible:ring-ring/50 h-8 w-36 rounded-md border px-2 text-sm outline-none focus-visible:ring-[3px]"
+                  :value="clientDraft(row)"
+                  :disabled="saving === row.scopeHash"
+                  placeholder="client"
+                  @input="drafts[row.scopeHash] = ($event.target as HTMLInputElement).value"
+                  @keydown.enter.prevent="saveClient(row)"
+                  @blur="saveClient(row)"
+                >
               </UiTableCell>
               <UiTableCell numeric>{{ formatUsd(row.costUsd) }}</UiTableCell>
               <UiTableCell numeric class="w-32">

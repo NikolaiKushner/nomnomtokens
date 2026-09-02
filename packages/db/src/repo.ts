@@ -51,11 +51,13 @@ export class Repo {
     `)
 
     this.upsertScope = sqlite.prepare(`
-      INSERT INTO scopes (scope_hash, label, provider, last_seen)
-      VALUES (@scopeHash, @label, @provider, @lastSeen)
+      INSERT INTO scopes (scope_hash, label, provider, last_seen, client, label_locked)
+      VALUES (@scopeHash, @label, @provider, @lastSeen, @client, @labelLocked)
       ON CONFLICT(scope_hash) DO UPDATE SET
-        label = excluded.label,
-        last_seen = MAX(scopes.last_seen, excluded.last_seen)
+        label = CASE WHEN scopes.label_locked = 1 THEN scopes.label ELSE excluded.label END,
+        last_seen = MAX(scopes.last_seen, excluded.last_seen),
+        client = COALESCE(excluded.client, scopes.client),
+        label_locked = MAX(scopes.label_locked, excluded.label_locked)
     `)
 
     this.insertLimit = sqlite.prepare(`
@@ -115,7 +117,9 @@ export class Repo {
             scopeHash: rec.scopeHash,
             label: rec.label,
             provider: rec.provider,
-            lastSeen: Date.now(),
+            lastSeen: rec.lastSeen ?? Date.now(),
+            client: rec.client ?? null,
+            labelLocked: rec.labelLocked ? 1 : 0,
           })
           result.scopes += 1
         }
@@ -152,6 +156,30 @@ export class Repo {
 
   eventCount(): number {
     return this.sqlite.prepare('SELECT COUNT(*) AS c FROM events').pluck().get() as number
+  }
+
+  /**
+   * Rename a project or attach a client tag. Locks the label so a later scan
+   * cannot revert it to the folder basename.
+   */
+  updateScope(
+    scopeHash: string,
+    patch: { label?: string, client?: string | null },
+  ): boolean {
+    const row = this.sqlite.prepare(
+      'SELECT label, client FROM scopes WHERE scope_hash = ?',
+    ).get(scopeHash) as { label: string, client: string | null } | undefined
+    if (!row) return false
+    const label = patch.label !== undefined ? patch.label.trim() || row.label : row.label
+    const client = patch.client !== undefined
+      ? (patch.client?.trim() || null)
+      : row.client
+    this.sqlite.prepare(`
+      UPDATE scopes
+      SET label = @label, client = @client, label_locked = 1
+      WHERE scope_hash = @scopeHash
+    `).run({ scopeHash, label, client })
+    return true
   }
 
   /**

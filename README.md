@@ -1,10 +1,11 @@
 # nomnomtokens
 
-> nom nom nom — your agent is eating tokens. The dashboard shows exactly how many.
+> nom nom nom — your agents are eating tokens. One local store shows where.
 
-A local-first dashboard for AI coding agent spend. Run one command and a
-dashboard opens in your browser: how much your agent ate today, on which
-projects, and when you'll hit your limit.
+A local-first dashboard for AI coding agent spend across Claude Code, Codex,
+and Cursor. Run one command and a dashboard opens in your browser: how much
+went today, on which projects and models, how much of that was cache or
+subagents, and when you'll hit your limit.
 
 ```sh
 npx nomnomtokens
@@ -14,21 +15,27 @@ npx nomnomtokens
 
 ![nomnomtokens Timeline — spend stacked by model and activity heatmap](docs/timeline.png)
 
-Claude Code, Cursor (when its local IDE database has token fields), and Codex
-CLI/IDE session rollouts. The event contract is deliberately not AI-shaped, so
-other agents — and eventually CI minutes and cloud bills — plug in as adapters
-without touching the core.
+One store for Claude Code, Codex CLI/IDE session rollouts, and Cursor (when its
+local IDE database has token fields). The point is not another total — it is
+history you can filter and audit: model mix, cache vs fresh tokens, and
+subagent share where the transcript marks it. The event contract is deliberately
+not AI-shaped, so other agents — and eventually CI minutes and cloud bills —
+plug in as adapters without touching the core.
 
 ## What you get
 
-- **Overview** — eaten today / this week / this month, with a limits widget that
-  projects when you'll hit the cap at your current burn rate.
+- **Overview** — eaten today / this week / this month, a limits widget that
+  projects when you'll hit the cap, a **Where it went** card (cache hit,
+  subagent share, model mix, tips), and a **Verdict** when weekly limit
+  snapshots exist.
+- **Audit** — the full report: models, top sessions, cold resumes, tips. Same
+  numbers as `nnt audit`.
 - **Timeline** — spend over time stacked by model, plus an hour×weekday heatmap
   of when you actually work.
 - **Projects** — per-project cost with trend against the preceding period. Click
-  a row to filter every screen. This is the one that lets a freelancer bill a
-  client.
-- **Providers** — cache hit rate and cost per 1,000 changed lines.
+  a row to filter every screen; expand a row to tag a client for invoices.
+- **Providers** — per-agent and per-model breakdown: cache hit rate and cost per
+  1,000 changed lines.
 - **Sessions** — every conversation, drilling into how the bill accumulated.
 - **Limits** — window-fill history with a burn-rate projection and markers for
   the moments you actually hit the cap.
@@ -54,12 +61,15 @@ live updates.
 The hook doubles as a real status line:
 
 ```
-(＾ｕ＾)  $4.20  ctx 37%  5h 73% ·1h47m  7d 41% ·4d3h  138 lines
+(＾ｕ＾)  $4.20  ctx 37%  7d 81% ·4d3h  5h 73% ·1h47m  138 lines
 ```
 
 The countdown after each window is the time left until it resets: the
 percentage tells you whether to slow down, the countdown tells you what slowing
-down would cost. It is omitted when Claude Code sends no `resets_at`.
+down would cost. It is omitted when Claude Code sends no `resets_at`. The
+weekly window is shown first when it is the tighter of the two. If Claude's
+week is nearly full and a recent Codex snapshot in the store still has
+headroom, a `codex 7d N%` suffix is appended.
 
 ## Commands
 
@@ -70,16 +80,21 @@ down would cost. It is omitted when Claude Code sends no `resets_at`.
 | `nnt serve [--port]` | open the dashboard |
 | `nnt init [--force]` | wire up the status line hook |
 | `nnt statusline` | ingest a session payload and print a status line |
-| `nnt doctor` | why is it empty? checks sources, hook, and store |
-| `nnt import <file.csv>` | import a billing CSV into the local store |
-| `nnt export` | dump filtered events as CSV/JSON |
+| `nnt doctor` | why is it empty? checks sources, hook, store, and transcript wipe |
+| `nnt import <file>` | billing CSV or nnt archive JSON into the local store |
+| `nnt export` | dump filtered events as CSV/JSON, or `--format nnt` for a portable store |
 | `nnt prices [show\|refresh]` | local model price table (`~/.nomnomtokens/prices.json`) |
 | `nnt alerts [show\|check]` | limit % / daily $ thresholds (`~/.nomnomtokens/alerts.json`) |
+| `nnt audit [--days] [--json]` | where spend went: cache, subagents, models, cold resumes, tips |
+| `nnt verdict [--json]` | which Claude plan weekly fill actually needs (dated estimates) |
+| `nnt otel --endpoint <url>` | opt-in OTLP/HTTP JSON export of numbers and hashes |
 
 ## Privacy
 
-Your data never leaves your machine. No account, no telemetry, no network calls
-at all — not even a font or a CDN script.
+Your data never leaves your machine unless you opt in. No account, no telemetry.
+The dashboard makes no outbound calls — not even a font or a CDN script. The
+only network is explicit: `nnt prices refresh --from`, alert webhooks, and
+`nnt otel --endpoint`.
 
 The event type has nowhere to put a prompt, a diff, or a path:
 
@@ -145,9 +160,11 @@ the core, the contract is wrong and that's a bug worth reporting.
 
 ## Roadmap
 
-Shipped: Claude Code / Cursor / Codex adapters, CSV import & export, Projects
-grouped by name, local `prices.json` refresh, limit/daily alerts, all dashboard
-screens, limits with forecasting, live updates.
+Shipped: Claude Code / Cursor / Codex adapters, CSV and nnt-archive import &
+export, Projects grouped by name with optional client tags, local `prices.json`
+refresh, limit/daily alerts, all dashboard screens including `/audit`, limits
+with forecasting, live updates, Overview audit + verdict, `nnt audit` /
+`nnt verdict`, and opt-in `nnt otel`.
 
 Cursor caveat: the IDE often stores zero token counts in local bubbles. We only
 emit events when numbers are present (exact `tokenCount`, or
@@ -155,8 +172,10 @@ emit events when numbers are present (exact `tokenCount`, or
 local counts will not appear until Cursor writes them — or until you import a
 billing CSV.
 
-Next: OTLP receiver, then cloud mode — a second sink for the same events, never
-a rewrite, and never in the critical path.
+Next: a desktop window and menu bar around the same local store. Cloud mode
+stays a later second sink for the same events, never a rewrite, and never in
+the critical path. An OTLP *receiver* is not on the roadmap — `nnt otel`
+exports into Grafana/Datadog you already run.
 
 ## License
 

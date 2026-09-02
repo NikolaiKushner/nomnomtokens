@@ -42,7 +42,7 @@ const props = withDefaults(
   defineProps<{
     variant?: ButtonVariants['variant']
     size?: ButtonVariants['size']
-    to?: string
+    to?: string | Record<string, unknown>
     href?: string
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean

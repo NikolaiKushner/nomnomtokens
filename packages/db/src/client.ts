@@ -6,7 +6,7 @@ import type BetterSqlite3 from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema/sqlite.js'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export function defaultDataDir(): string {
   return process.env.NOMNOMTOKENS_HOME ?? join(homedir(), '.nomnomtokens')
@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS scopes (
   scope_hash TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   provider TEXT NOT NULL,
-  last_seen INTEGER NOT NULL
+  last_seen INTEGER NOT NULL,
+  client TEXT,
+  label_locked INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS limits (
@@ -74,6 +76,17 @@ export interface DbHandle {
 
 export type Db = DbHandle['db']
 
+function migrate(sqlite: BetterSqlite3.Database, from: number): void {
+  if (from < 2) {
+    const cols = sqlite.pragma('table_info(scopes)') as Array<{ name: string }>
+    const names = new Set(cols.map(c => c.name))
+    if (!names.has('client')) sqlite.exec('ALTER TABLE scopes ADD COLUMN client TEXT')
+    if (!names.has('label_locked')) {
+      sqlite.exec('ALTER TABLE scopes ADD COLUMN label_locked INTEGER NOT NULL DEFAULT 0')
+    }
+  }
+}
+
 export function openDb(path: string = defaultDbPath()): DbHandle {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true })
 
@@ -91,6 +104,9 @@ export function openDb(path: string = defaultDbPath()): DbHandle {
     throw new Error(
       `Database at ${path} was written by a newer nomnomtokens (schema v${found}, this build understands v${SCHEMA_VERSION}). Upgrade the CLI.`,
     )
+  } else if (found < SCHEMA_VERSION) {
+    migrate(sqlite, found)
+    sqlite.pragma(`user_version = ${SCHEMA_VERSION}`)
   }
 
   const db = drizzle(sqlite, { schema })

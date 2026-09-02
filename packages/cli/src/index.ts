@@ -4,14 +4,17 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
 import { alertsCheck, alertsShow } from './commands/alerts.js'
+import { auditCommand } from './commands/audit.js'
 import { doctor } from './commands/doctor.js'
 import { exportCommand } from './commands/export.js'
-import { importCsvCommand } from './commands/import-csv.js'
+import { importCommand } from './commands/import.js'
 import { init } from './commands/init.js'
+import { otelCommand } from './commands/otel.js'
 import { pricesRefresh, pricesShow } from './commands/prices.js'
 import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
 import { statusline } from './commands/statusline.js'
+import { verdictCommand } from './commands/verdict.js'
 
 /** Walk up from this file until we find the published root package.json. */
 function packageVersion(): string {
@@ -37,7 +40,7 @@ const program = new Command()
 
 program
   .name('nnt')
-  .description('nom nom nom — your agent is eating tokens. The dashboard shows exactly how many.')
+  .description('nom nom nom — your agents are eating tokens. One local store shows where.')
   .version(packageVersion())
   .option('--db <path>', 'database file (default: ~/.nomnomtokens/data.db)')
 
@@ -92,7 +95,7 @@ program
 
 program
   .command('import <file>')
-  .description('import a CSV billing export or spreadsheet into the local store')
+  .description('import a billing CSV or an nnt archive JSON into the local store')
   .option('--provider <name>', 'provider label written on every row', 'csv')
   .option('--kind <kind>', 'event kind (tokens, minutes, …)', 'tokens')
   .option('-q, --quiet', 'suppress the summary')
@@ -100,7 +103,7 @@ program
     file: string,
     opts: { provider?: string, kind?: string, quiet?: boolean },
   ) => {
-    await importCsvCommand({
+    await importCommand({
       file,
       provider: opts.provider,
       kind: opts.kind,
@@ -111,20 +114,22 @@ program
 
 program
   .command('export')
-  .description('write filtered events as CSV or JSON (stdout or -o file)')
-  .option('--format <fmt>', 'csv or json', 'csv')
+  .description('write filtered events as CSV, JSON, or an nnt archive')
+  .option('--format <fmt>', 'csv, json, or nnt', 'csv')
   .option('-o, --out <file>', 'write to a file instead of stdout')
   .option('--range <range>', '24h | 7d | 30d | 90d | all', '30d')
   .option('--provider <name>', 'filter to one provider')
+  .option('--client <name>', 'filter to a local client tag')
   .option('-q, --quiet', 'suppress the summary on stderr')
   .action((opts: {
     format?: string
     out?: string
     range?: string
     provider?: string
+    client?: string
     quiet?: boolean
   }) => {
-    const format = opts.format === 'json' ? 'json' : 'csv'
+    const format = opts.format === 'json' || opts.format === 'nnt' ? opts.format : 'csv'
     const range = (['24h', '7d', '30d', '90d', 'all'] as const).includes(opts.range as never)
       ? (opts.range as '24h' | '7d' | '30d' | '90d' | 'all')
       : '30d'
@@ -133,6 +138,7 @@ program
       out: opts.out,
       range,
       provider: opts.provider,
+      client: opts.client,
       quiet: opts.quiet,
       db: program.opts().db as string | undefined,
     })
@@ -182,6 +188,60 @@ alerts
     })
   })
 
+program
+  .command('audit')
+  .description('where spend went: cache, subagents, models, and tips')
+  .option('--days <n>', 'calendar days to include (default 7)', v => Number.parseInt(v, 10), 7)
+  .option('--json', 'print the audit report as JSON')
+  .option('-q, --quiet', 'suppress empty-range hint')
+  .action((opts: { days?: number, json?: boolean, quiet?: boolean }) => {
+    auditCommand({
+      days: opts.days,
+      json: opts.json,
+      quiet: opts.quiet,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
+program
+  .command('verdict')
+  .description('which Claude plan your weekly fill actually needs (Pro / 5x / 20x)')
+  .option('--json', 'print the verdict as JSON')
+  .action((opts: { json?: boolean }) => {
+    verdictCommand({
+      json: opts.json,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
+program
+  .command('otel')
+  .description('opt-in OTLP/HTTP export of local numbers (never on by default)')
+  .requiredOption('--endpoint <url>', 'OTLP HTTP base (we POST /v1/metrics)')
+  .option('--once', 'export current store and exit (default)')
+  .option('-w, --watch', 'scan once, then export')
+  .option('--scan', 'run a catch-up scan before exporting')
+  .option('--include-labels', 'attach local project labels (off by default)')
+  .option('-q, --quiet', 'suppress the summary')
+  .action(async (opts: {
+    endpoint: string
+    once?: boolean
+    watch?: boolean
+    scan?: boolean
+    includeLabels?: boolean
+    quiet?: boolean
+  }) => {
+    await otelCommand({
+      endpoint: opts.endpoint,
+      once: opts.once,
+      watch: opts.watch,
+      scan: opts.scan,
+      includeLabels: opts.includeLabels,
+      quiet: opts.quiet,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
 /**
  * `npx nomnomtokens` is the advertised entry point, so an invocation with no
  * subcommand means "open the dashboard" rather than "print help at someone who
@@ -193,7 +253,7 @@ alerts
  * name no command and aren't asking for help, insert `serve`.
  */
 const COMMANDS = new Set([
-  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'alerts', 'help',
+  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'alerts', 'audit', 'verdict', 'otel', 'help',
 ])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 

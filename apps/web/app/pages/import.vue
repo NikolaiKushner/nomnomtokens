@@ -25,11 +25,18 @@ async function upload(file: File) {
     body.set('file', file)
     body.set('provider', provider.value.trim() || 'csv')
     body.set('kind', kind.value.trim() || 'tokens')
-    const res = await $fetch<{ added: number, events: number, duplicates: number, scopes: number }>(
+    const res = await $fetch<{
+      added: number
+      events: number
+      duplicates: number
+      scopes: number
+      format?: string
+    }>(
       '/api/import/csv',
       { method: 'POST', body },
     )
-    message.value = `Imported ${res.added} new event(s) `
+    const kindLabel = res.format === 'nnt' ? 'nnt archive' : 'file'
+    message.value = `Imported ${res.added} new event(s) from ${kindLabel} `
       + `(${res.events} in file, ${res.duplicates} already known, ${res.scopes} scope(s)).`
     await refreshNuxtData()
   } catch (err) {
@@ -49,15 +56,16 @@ function onDrop(event: DragEvent) {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Import CSV</h1>
+      <h1 class="text-2xl font-semibold tracking-tight">Import</h1>
       <p class="text-muted-foreground mt-1 text-sm">
-        Drop a billing export or spreadsheet. Headers like
+        Drop a billing CSV or an nnt archive JSON. CSV headers like
         <span class="font-mono">timestamp</span>,
         <span class="font-mono">cost</span>,
         <span class="font-mono">model</span>,
         <span class="font-mono">project</span>,
         <span class="font-mono">input_tokens</span> /
         <span class="font-mono">output_tokens</span> are detected automatically.
+        An nnt file is the whole local store (events, limits, labels) — not just a spreadsheet.
       </p>
     </div>
 
@@ -65,8 +73,9 @@ function onDrop(event: DragEvent) {
       <UiCardHeader>
         <UiCardTitle>File</UiCardTitle>
         <UiCardDescription>
-          Re-importing the same rows is safe — each row hashes to a stable id.
+          Re-importing the same rows is safe — each event hashes to a stable id.
           CLI: <span class="font-mono">nnt import path/to/file.csv</span>
+          or <span class="font-mono">nnt import archive.json</span>
         </UiCardDescription>
       </UiCardHeader>
       <UiCardContent class="space-y-4">
@@ -95,12 +104,12 @@ function onDrop(event: DragEvent) {
           @drop="onDrop"
           @click="fileInput?.click()"
         >
-          <p class="text-sm font-medium">Drop a .csv here, or click to choose</p>
-          <p class="text-muted-foreground text-xs">UTF-8 text · first row = headers</p>
+          <p class="text-sm font-medium">Drop a .csv or .json here, or click to choose</p>
+          <p class="text-muted-foreground text-xs">UTF-8 · billing CSV or nnt archive</p>
           <input
             ref="fileInput"
             type="file"
-            accept=".csv,text/csv,text/plain"
+            accept=".csv,.json,text/csv,application/json,text/plain"
             class="hidden"
             :disabled="busy"
             @change="onFile"
