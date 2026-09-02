@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.4.0...v0.5.0) (2026-09-02)
+
+
+### Features
+
+* introduce audit functionality and enhance export/import capabilities ([1e51875](https://github.com/NikolaiKushner/nomnomtokens/commit/1e518753736e7cbe3d1ad1fd9f62a6b440ffc89e))
+
 ## [0.4.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.3.0...v0.4.0) (2026-08-10)
 
 
