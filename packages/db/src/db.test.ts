@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SpendEvent } from '@nomnomtokens/core'
-import { COLD_GAP_MS, formatNntArchive, parseNntArchive } from '@nomnomtokens/core'
+import { COLD_GAP_MS, buildWeigh, formatNntArchive, pairRisingSnapshots, parseNntArchive } from '@nomnomtokens/core'
 import { openDb } from './client.js'
 import { Queries } from './queries.js'
 import { Repo } from './repo.js'
@@ -296,5 +296,32 @@ describe('queries', () => {
     const latest = q.latestLimits()
     expect(latest.find(l => l.provider === 'codex' && l.window === '7d')?.usedPct).toBe(12)
     expect(latest.find(l => l.provider === 'claude-code')?.usedPct).toBe(80)
+  })
+
+  it('puts a boundary event in the next weigh gap only', () => {
+    const { repo, q } = fresh()
+    repo.ingest([
+      { type: 'limit', limit: { ts: 1000, provider: 'claude-code', window: '7d', usedPct: 10, resetsAt: null } },
+      { type: 'limit', limit: { ts: 2000, provider: 'claude-code', window: '7d', usedPct: 20, resetsAt: null } },
+      { type: 'limit', limit: { ts: 3000, provider: 'claude-code', window: '7d', usedPct: 30, resetsAt: null } },
+      { type: 'event', event: event({ id: 'inside', ts: 1500, unitLabel: 'opus', costUsd: 4 }) },
+      { type: 'event', event: event({ id: 'edge', ts: 2000, unitLabel: 'sonnet', costUsd: 1 }) },
+    ])
+    const snaps = q.limitSnapshots('claude-code', '7d')
+    const gaps = pairRisingSnapshots(snaps).map(p => ({
+      deltaPct: p.deltaPct,
+      models: q.byUnitLabel({
+        from: p.from,
+        to: p.to,
+        provider: ['claude-code'],
+        kind: 'tokens',
+      })
+        .filter(row => row.costUsd > 0)
+        .map(row => ({ unitLabel: row.unitLabel, costUsd: row.costUsd })),
+    }))
+    expect(gaps.map(g => g.models.map(m => m.unitLabel))).toEqual([['opus'], ['sonnet']])
+    const report = buildWeigh(gaps)
+    expect(report.risingIntervals).toBe(2)
+    expect(report.models.every(m => m.status === 'unknown')).toBe(true)
   })
 })

@@ -87,6 +87,7 @@ headroom, a `codex 7d N%` suffix is appended.
 | `nnt alerts [show\|check]` | limit % / daily $ thresholds (`~/.nomnomtokens/alerts.json`) |
 | `nnt audit [--days] [--json]` | where spend went: cache, subagents, models, cold resumes, tips |
 | `nnt verdict [--json]` | which Claude plan weekly fill actually needs (dated estimates) |
+| `nnt weigh [--json]` | weekly limit points per list-price dollar, when one model owns the gap |
 | `nnt otel --endpoint <url>` | opt-in OTLP/HTTP JSON export of numbers and hashes |
 
 ## Privacy

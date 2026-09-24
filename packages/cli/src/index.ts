@@ -15,6 +15,7 @@ import { scan } from './commands/scan.js'
 import { serve } from './commands/serve.js'
 import { statusline } from './commands/statusline.js'
 import { verdictCommand } from './commands/verdict.js'
+import { weighCommand } from './commands/weigh.js'
 
 /** Walk up from this file until we find the published root package.json. */
 function packageVersion(): string {
@@ -215,6 +216,17 @@ program
   })
 
 program
+  .command('weigh')
+  .description('weekly limit points per list-price dollar, from gaps one model dominates')
+  .option('--json', 'print the weigh report as JSON')
+  .action((opts: { json?: boolean }) => {
+    weighCommand({
+      json: opts.json,
+      db: program.opts().db as string | undefined,
+    })
+  })
+
+program
   .command('otel')
   .description('opt-in OTLP/HTTP export of local numbers (never on by default)')
   .requiredOption('--endpoint <url>', 'OTLP HTTP base (we POST /v1/metrics)')
@@ -253,7 +265,7 @@ program
  * name no command and aren't asking for help, insert `serve`.
  */
 const COMMANDS = new Set([
-  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'alerts', 'audit', 'verdict', 'otel', 'help',
+  'scan', 'serve', 'init', 'statusline', 'doctor', 'import', 'export', 'prices', 'alerts', 'audit', 'verdict', 'weigh', 'otel', 'help',
 ])
 const META_FLAGS = new Set(['-h', '--help', '-V', '--version'])
 
