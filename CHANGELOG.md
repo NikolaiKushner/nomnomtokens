@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.5.0...v0.6.0) (2026-10-05)
+
+
+### Features
+
+* show stored limits and the session model on the statusline ([8bc7051](https://github.com/NikolaiKushner/nomnomtokens/commit/8bc705106c736bf946201308d6169cb9b04f5f9d))
+
 ## [0.5.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.4.0...v0.5.0) (2026-09-24)
 
 
