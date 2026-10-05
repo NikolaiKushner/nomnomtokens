@@ -61,15 +61,18 @@ live updates.
 The hook doubles as a real status line:
 
 ```
-(＾ｕ＾)  $4.20  ctx 37%  7d 81% ·4d3h  5h 73% ·1h47m  138 lines
+Limits: 7d  81%  4d3h  |  5h  73%  1h47m  |  ctx. 37%  |  Opus 4.6
 ```
 
-The countdown after each window is the time left until it resets: the
-percentage tells you whether to slow down, the countdown tells you what slowing
-down would cost. It is omitted when Claude Code sends no `resets_at`. The
-weekly window is shown first when it is the tighter of the two. If Claude's
-week is nearly full and a recent Codex snapshot in the store still has
-headroom, a `codex 7d N%` suffix is appended.
+The labels `7d`, `5h`, and `ctx`, and the session model name, are cyan; the
+figures stay the default colour. The model is Claude's `display_name` for
+whatever is selected in this session. The countdown after each percentage is
+the time left until that
+window resets. It is omitted when there is no `resets_at`. If this render's
+payload has no `rate_limits` yet — typical before the first request of a
+session — the last stored snapshot is shown instead, as long as that window
+has not reset. If Claude's week is nearly full and a recent Codex snapshot
+in the store still has headroom, a `codex: N%` segment is appended.
 
 ## Commands
 

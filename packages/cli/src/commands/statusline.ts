@@ -1,7 +1,7 @@
 import type { StatuslinePayload } from '@nomnomtokens/adapters'
 import { parseStatusline } from '@nomnomtokens/adapters'
 import { openDb, Queries, Repo } from '@nomnomtokens/db'
-import { buildStatuslineParts } from '../statusline-render.js'
+import { buildStatuslineParts, resolveWindow, type CachedWindow } from '../statusline-render.js'
 
 /**
  * `nnt statusline` is both an ingest hook and a real status line.
@@ -29,18 +29,30 @@ export interface StatuslineOptions {
   dryRun?: boolean
 }
 
-function readCodexWeekly(db?: string): number | null {
+interface StoredLimits {
+  codexSevenDay: number | null
+  claudeFive: CachedWindow | null
+  claudeSeven: CachedWindow | null
+}
+
+function readStoredLimits(db?: string, now = Date.now()): StoredLimits {
+  const empty: StoredLimits = { codexSevenDay: null, claudeFive: null, claudeSeven: null }
   try {
     const { sqlite } = openDb(db)
-    const q = new Queries(sqlite)
-    const latest = q.latestLimits()
+    const latest = new Queries(sqlite).latestLimits()
     sqlite.close()
-    const row = latest.find(l => l.provider === 'codex' && l.window === '7d')
-    if (!row) return null
-    if (Date.now() - row.ts > CODEX_FRESH_MS) return null
-    return row.usedPct
+    const claude = (window: string): CachedWindow | null => {
+      const row = latest.find(l => l.provider === 'claude-code' && l.window === window)
+      return row ? { usedPct: row.usedPct, resetsAt: row.resetsAt } : null
+    }
+    const codex = latest.find(l => l.provider === 'codex' && l.window === '7d')
+    return {
+      codexSevenDay: codex && now - codex.ts <= CODEX_FRESH_MS ? codex.usedPct : null,
+      claudeFive: claude('5h'),
+      claudeSeven: claude('7d'),
+    }
   } catch {
-    return null
+    return empty
   }
 }
 
@@ -55,25 +67,37 @@ export async function statusline(opts: StatuslineOptions = {}): Promise<void> {
   }
 
   const limits = payload.rate_limits
-  const fiveHour = limits?.five_hour?.used_percentage ?? null
-  const sevenDay = limits?.seven_day?.used_percentage ?? null
-  const cost = payload.cost?.total_cost_usd ?? null
+  const now = Date.now()
+  const stored = readStoredLimits(opts.db, now)
+  // Claude often omits rate_limits until the first API turn. The last snapshot
+  // whose window is still open is enough to paint the bar on that first render.
+  const five = resolveWindow(
+    limits?.five_hour?.used_percentage ?? null,
+    limits?.five_hour?.resets_at,
+    stored.claudeFive,
+    now,
+  )
+  const seven = resolveWindow(
+    limits?.seven_day?.used_percentage ?? null,
+    limits?.seven_day?.resets_at,
+    stored.claudeSeven,
+    now,
+  )
   const ctx = payload.context_window?.used_percentage ?? null
-  const lines = (payload.cost?.total_lines_added ?? 0) + (payload.cost?.total_lines_removed ?? 0)
-  const codexSevenDay = readCodexWeekly(opts.db)
+  const model = payload.model?.display_name?.trim() || payload.model?.id?.trim() || null
 
-  const parts = buildStatuslineParts({
-    fiveHour,
-    sevenDay,
-    fiveHourResetsAt: limits?.five_hour?.resets_at,
-    sevenDayResetsAt: limits?.seven_day?.resets_at,
-    cost,
+  const line = buildStatuslineParts({
+    fiveHour: five.pct,
+    sevenDay: seven.pct,
+    fiveHourResetsAt: five.resetsAtSeconds,
+    sevenDayResetsAt: seven.resetsAtSeconds,
     ctx,
-    lines,
-    codexSevenDay,
+    model,
+    codexSevenDay: stored.codexSevenDay,
+    now,
   })
 
-  process.stdout.write(`${parts.join('  ')}\n`)
+  process.stdout.write(`${line}\n`)
 
   if (opts.dryRun) return
 
