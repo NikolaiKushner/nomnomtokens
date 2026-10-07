@@ -3,17 +3,19 @@
 > nom nom nom — your agents are eating tokens. One local store shows where.
 
 A local-first dashboard for AI coding agent spend across Claude Code, Codex,
-and Cursor. Run one command and a dashboard opens in your browser: how much
-went today, on which projects and models, how much of that was cache or
-subagents, and when you'll hit your limit.
+and Cursor. Run one command and a dashboard opens in your browser: spend
+stacked by model, cache against fresh tokens, and how full each limit window
+is.
 
 ```sh
 npx nomnomtokens
 ```
 
-![nomnomtokens Overview — eaten today, cache hit rate, and limit projections](docs/overview.png)
+![nomnomtokens Timeline — thirty days of spend stacked by model, and an hour-by-weekday heatmap](docs/timeline.png)
 
-![nomnomtokens Timeline — spend stacked by model and activity heatmap](docs/timeline.png)
+![nomnomtokens Providers — cost and cache hit rate for Claude Code, Codex, and Cursor, then the same split per model](docs/providers.png)
+
+![nomnomtokens Limits — weekly window fill for Claude Code and Codex, with the burn-rate projection drawn past the last sample](docs/limits.png)
 
 One store for Claude Code, Codex CLI/IDE session rollouts, and Cursor (when its
 local IDE database has token fields). The point is not another total — it is
@@ -24,23 +26,28 @@ plug in as adapters without touching the core.
 
 ## What you get
 
-- **Overview** — eaten today / this week / this month, a limits widget that
-  projects when you'll hit the cap, a **Where it went** card (cache hit,
-  subagent share, model mix, tips), and a **Verdict** when weekly limit
-  snapshots exist.
+- **Overview** — eaten today, this week, and this month, plus cache hit rate
+  for the range in the URL. **Where it went** is cache vs fresh input, subagent
+  share, model mix, and tips. **Verdict** shows up when weekly limit snapshots
+  exist. A limits strip projects the cap from the current burn rate.
 - **Audit** — the full report: models, top sessions, cold resumes, tips. Same
   numbers as `nnt audit`.
-- **Timeline** — spend over time stacked by model, plus an hour×weekday heatmap
+- **Timeline** — spend over time, stacked by model or by provider, switched
+  between cost, token volume, and sessions. Under it, an hour×weekday heatmap
   of when you actually work.
-- **Projects** — per-project cost with trend against the preceding period. Click
-  a row to filter every screen; expand a row to tag a client for invoices.
-- **Providers** — per-agent and per-model breakdown: cache hit rate and cost per
-  1,000 changed lines.
-- **Sessions** — every conversation, drilling into how the bill accumulated.
-- **Limits** — window-fill history with a burn-rate projection and markers for
-  the moments you actually hit the cap.
+- **Projects** — cost by folder name, with share of the range and trend against
+  the preceding period of the same length. Click a name to filter every screen;
+  expand a row to separate clones or tag a client for invoices.
+- **Providers** — one card per agent (share of spend, cache hit rate, cost per
+  1,000 changed lines), then the same split per model.
+- **Sessions** — every conversation, newest first. Open one to see how the bill
+  accumulated.
+- **Limits** — one card per window. The line is measured fill; the continuation
+  past the last sample is the burn-rate projection to 100%. A marker sits on
+  the moment you actually hit the cap.
 
-Filter state lives in the URL, `⌘K` jumps anywhere, light or dark theme.
+Import, Export, and Alerts are in the same sidebar. Filter state lives in the
+URL, `⌘K` jumps anywhere, light or dark theme.
 
 ## Install
 
@@ -53,10 +60,11 @@ npx nomnomtokens init     # wire up the status line hook (limits + live updates)
 file up first, refuses to clobber a status line you already have, and prints
 exactly what it changed.
 
-Why it matters: **subscription limits appear nowhere in the transcript.** The
-5-hour and 7-day window percentages are only ever handed to the status line
-hook. Without it you still get full history and cost; you don't get limits or
-live updates.
+Why it matters: **Claude Code subscription limits appear nowhere in the
+transcript.** The 5-hour and 7-day percentages are only ever handed to the
+status line hook. Codex writes its own windows (5h, 7d, 30d) into session
+rollouts, so a scan picks those up without `init`. Without the hook you still
+get full history and cost; you don't get Claude limits or live updates.
 
 The hook doubles as a real status line:
 
@@ -66,9 +74,7 @@ Limits: 7d  81%  4d3h  |  5h  73%  1h47m  |  ctx. 37%  |  Opus 4.6
 
 The labels `7d`, `5h`, and `ctx`, and the session model name, are cyan; the
 figures stay the default colour. The model is Claude's `display_name` for
-whatever is selected in this session. The countdown after each percentage is
-the time left until that
-window resets. It is omitted when there is no `resets_at`. If this render's
+whatever is selected in this session. The countdown after each percentage is the time left until that window resets. It is omitted when there is no `resets_at`. If this render's
 payload has no `rate_limits` yet — typical before the first request of a
 session — the last stored snapshot is shown instead, as long as that window
 has not reset. If Claude's week is nearly full and a recent Codex snapshot
@@ -80,7 +86,7 @@ in the store still has headroom, a `codex: N%` segment is appended.
 |---|---|
 | `nnt` | scan, then open the dashboard |
 | `nnt scan [--watch]` | read new records into the local store |
-| `nnt serve [--port]` | open the dashboard |
+| `nnt serve [--port]` | same as a bare `nnt`. `--no-scan` skips the catch-up, `--no-open` stays in the terminal |
 | `nnt init [--force]` | wire up the status line hook |
 | `nnt statusline` | ingest a session payload and print a status line |
 | `nnt doctor` | why is it empty? checks sources, hook, store, and transcript wipe |
@@ -145,7 +151,7 @@ To check the published artefact rather than the workspace:
 
 ```sh
 npm pack
-cd $(mktemp -d) && npm init -y && npm i /path/to/nomnomtokens-0.1.0.tgz
+cd $(mktemp -d) && npm init -y && npm i /path/to/nomnomtokens-0.6.0.tgz
 ./node_modules/.bin/nnt doctor
 ```
 
