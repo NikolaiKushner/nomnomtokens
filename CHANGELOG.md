@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.6.0...v0.6.1) (2026-10-07)
+
+
+### Documentation
+
+* refresh the README screenshots and product description ([61922fb](https://github.com/NikolaiKushner/nomnomtokens/commit/61922fb38949eaa852ffd6e01098495e164ad3d0))
+
 ## [0.6.0](https://github.com/NikolaiKushner/nomnomtokens/compare/v0.5.0...v0.6.0) (2026-10-05)
 
 
